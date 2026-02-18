@@ -13,6 +13,15 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/estructura", adminAuth, async (req, res, next) => {
+  try {
+    const data = await ubicacionService.obtenerEstructura(req.query);
+    res.status(200).json({ data });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     const ubicacion = await ubicacionService.obtenerUbicacionPorId(
