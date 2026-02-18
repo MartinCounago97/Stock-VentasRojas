@@ -21,15 +21,17 @@ const UbicacionSchema = new mongoose.Schema(
 );
 
 // Genera key automáticamente
-UbicacionSchema.pre("validate", function (next) {
+UbicacionSchema.pre("validate", function () {
   const sector = (this.sector || "").trim();
   const codigo = (this.codigo || "").trim();
+
+  // (opcional) normalizar campos
+  this.sector = sector;
+  this.codigo = codigo;
 
   if (sector && codigo) {
     this.key = `${sector}-${codigo}`.toLowerCase();
   }
-
-  next();
 });
 
 module.exports = mongoose.model("Ubicacion", UbicacionSchema);

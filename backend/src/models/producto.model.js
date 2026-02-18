@@ -42,41 +42,37 @@ const ProductoSchema = new mongoose.Schema(
 );
 
 // Defaults
-ProductoSchema.pre("save", async function (next) {
-  try {
-    const defaultMin = Number(process.env.DEFAULT_STOCK_MINIMO ?? 0);
+ProductoSchema.pre("save", async function () {
+  // 1) stockMinimo default
+  const defaultMin = Number(process.env.DEFAULT_STOCK_MINIMO ?? 0);
+  if (this.stockMinimo === undefined || this.stockMinimo === null) {
+    this.stockMinimo = Number.isFinite(defaultMin) ? defaultMin : 0;
+  }
 
-    if (this.stockMinimo === undefined || this.stockMinimo === null) {
-      this.stockMinimo = Number.isFinite(defaultMin) ? defaultMin : 0;
-    }
+  // 2) ubicacion por defecto SOLO al crear
+  if (this.isNew && !this.ubicacionId) {
+    const sector = "AUN A DEFINIR";
+    const codigo = "SIN-UBICACION";
+    const key = `${sector}-${codigo}`.toLowerCase();
 
-    if (this.isNew && !this.ubicacionId) {
-      const sector = "AUN A DEFINIR";
-      const codigo = "SIN-UBICACION";
-      const key = `${sector}-${codigo}`.toLowerCase();
+    let u = await Ubicacion.findOne({ key });
 
-      let u = await Ubicacion.findOne({ key });
-
-      if (!u) {
-        try {
-          u = await Ubicacion.create({
-            sector,
-            codigo,
-            descripcion: "Ubicación por defecto",
-            activo: true,
-            key,
-          });
-        } catch (e) {
-          u = await Ubicacion.findOne({ key });
-        }
+    if (!u) {
+      try {
+        u = await Ubicacion.create({
+          sector,
+          codigo,
+          descripcion: "Ubicación por defecto",
+          activo: true,
+          key,
+        });
+      } catch (e) {
+        // carrera: si otro request la creó justo antes
+        u = await Ubicacion.findOne({ key });
       }
-
-      this.ubicacionId = u._id;
     }
 
-    next();
-  } catch (err) {
-    next(err);
+    this.ubicacionId = u._id;
   }
 });
 

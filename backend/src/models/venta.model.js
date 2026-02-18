@@ -9,7 +9,7 @@ const VentaItemSchema = new mongoose.Schema(
       index: true,
     },
 
-    nombre: { type: String, required: true, trim: true },
+    nombreProducto: { type: String, required: true, trim: true },
 
     cantidad: { type: Number, required: true, min: 1 },
 
@@ -28,6 +28,17 @@ const VentaItemSchema = new mongoose.Schema(
 
 const VentaSchema = new mongoose.Schema(
   {
+    cliente: { type: String, default: "", trim: true },
+
+    origen: {
+      type: String,
+      enum: ["admin", "catalogo_web", "whatsapp"],
+      default: "admin",
+      index: true,
+    },
+
+    observacion: { type: String, default: "", trim: true },
+
     items: { type: [VentaItemSchema], required: true, default: [] },
 
     total: { type: Number, required: true, min: 0, index: true },
@@ -40,12 +51,10 @@ const VentaSchema = new mongoose.Schema(
       index: true,
     },
 
-    nota: { type: String, default: "", trim: true },
-
     estado: {
       type: String,
-      enum: ["confirmada", "anulada"],
-      default: "confirmada",
+      enum: ["pendiente", "confirmada", "rechazada", "anulada"],
+      default: "pendiente",
       index: true,
     },
 
@@ -54,34 +63,31 @@ const VentaSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Recalcula total automáticamente
-VentaSchema.pre("validate", function (next) {
-  try {
-    if (this.items && this.items.length > 0) {
-      const moneda = this.items[0].moneda;
-
-      const mezcla = this.items.some((i) => i.moneda !== moneda);
-      if (mezcla) {
-        const err = new Error("No se permite mezclar monedas en una venta");
-        err.status = 400;
-        return next(err);
-      }
-
-      this.moneda = moneda;
-
-      let total = 0;
-      for (const item of this.items) {
-        item.subtotal = item.cantidad * item.precioUnitario;
-        total += item.subtotal;
-      }
-
-      this.total = total;
-    }
-
-    next();
-  } catch (e) {
-    next(e);
+// 🔥 Hook moderno (sin next)
+VentaSchema.pre("validate", function () {
+  if (!this.items || this.items.length === 0) {
+    throw new Error("La venta debe tener al menos un item");
   }
+
+  const moneda = this.items[0].moneda;
+
+  const mezcla = this.items.some((i) => i.moneda !== moneda);
+  if (mezcla) {
+    const err = new Error("No se permite mezclar monedas en una venta");
+    err.status = 400;
+    throw err;
+  }
+
+  this.moneda = moneda;
+
+  let total = 0;
+
+  for (const item of this.items) {
+    item.subtotal = item.cantidad * item.precioUnitario;
+    total += item.subtotal;
+  }
+
+  this.total = total;
 });
 
 module.exports = mongoose.model("Venta", VentaSchema);
