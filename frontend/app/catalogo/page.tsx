@@ -1,143 +1,212 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   ShoppingCart,
   Plus,
   Minus,
-  Trash2,
   X,
   Send,
   Package,
   Wrench,
   Filter,
-} from "lucide-react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { useProducts } from "@/hooks/use-store"
-import { store } from "@/lib/store"
-import { formatPrice } from "@/lib/format"
-import { toast } from "sonner"
+} from "lucide-react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { formatPrice } from "@/lib/format";
+import { toast } from "sonner";
+import {
+  fetchCatalogoProductos,
+  crearPedidoPendiente,
+  type CatalogoProducto,
+} from "@/lib/api/catalogo";
 
 interface CartItem {
-  productId: string
-  cantidad: number
+  productId: string;
+  cantidad: number;
 }
 
-const WA_NUMBER = "59897933160"
+const WA_NUMBER = "59897933160";
 
 function buildWhatsAppMessage(
   items: CartItem[],
-  products: ReturnType<typeof useProducts>,
+  products: CatalogoProducto[],
   contacto: string
 ) {
-  let msg = `Hola! Soy *${contacto}*.\nSolicito los siguientes productos:\n\n`
-  let total = 0
+  let msg = `Hola! Soy *${contacto}*.\nSolicito los siguientes productos:\n\n`;
+  let total = 0;
+
   items.forEach((item, i) => {
-    const product = products.find((p) => p.id === item.productId)
-    if (!product) return
-    const subtotal = product.precio * item.cantidad
-    total += subtotal
-    msg += `${i + 1}. *${product.nombre}*\n   Cantidad: ${item.cantidad}\n   Precio unit.: $${formatPrice(product.precio)}\n   Subtotal: $${formatPrice(subtotal)}\n\n`
-  })
-  msg += `---\n*TOTAL: $${formatPrice(total)}*\n\nAguardo confirmacion. Gracias!`
-  return msg
+    const product = products.find((p) => p.id === item.productId);
+    if (!product) return;
+
+    const subtotal = product.precio * item.cantidad;
+    total += subtotal;
+
+    msg += `${i + 1}. *${product.nombre}*\n   Cantidad: ${
+      item.cantidad
+    }\n   Precio unit.: $${formatPrice(
+      product.precio
+    )}\n   Subtotal: $${formatPrice(subtotal)}\n\n`;
+  });
+
+  msg += `---\n*TOTAL: $${formatPrice(
+    total
+  )}*\n\nAguardo confirmacion. Gracias!`;
+
+  return msg;
 }
 
 export default function CatalogoPage() {
-  const products = useProducts()
-  const [search, setSearch] = useState("")
-  const [cartOpen, setCartOpen] = useState(false)
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [contacto, setContacto] = useState("")
-  const [showFilters, setShowFilters] = useState(false)
-  const [sortBy, setSortBy] = useState<"nombre" | "precio-asc" | "precio-desc">("nombre")
+  const [products, setProducts] = useState<CatalogoProducto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
 
-  const inStockProducts = products.filter((p) => p.stock > 0)
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const data = await fetchCatalogoProductos();
+        if (mounted) setProducts(data);
+      } catch (e: any) {
+        toast.error(e?.message || "Error cargando productos");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const [search, setSearch] = useState("");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [contacto, setContacto] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<"nombre" | "precio-asc" | "precio-desc">(
+    "nombre"
+  );
+
+  const inStockProducts = products.filter((p) => p.stock > 0);
 
   const filtered = useMemo(() => {
-    let result = inStockProducts.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(search.toLowerCase()) ||
-        p.caracteristicas.toLowerCase().includes(search.toLowerCase())
-    )
+    const q = search.toLowerCase();
+
+    let result = inStockProducts.filter((p) => {
+      const nombre = (p.nombre || "").toLowerCase();
+      const carac = (p.caracteristicas || "").toLowerCase(); // ✅ fallback
+      return nombre.includes(q) || carac.includes(q);
+    });
+
     switch (sortBy) {
       case "precio-asc":
-        result = [...result].sort((a, b) => a.precio - b.precio)
-        break
+        result = [...result].sort((a, b) => a.precio - b.precio);
+        break;
       case "precio-desc":
-        result = [...result].sort((a, b) => b.precio - a.precio)
-        break
+        result = [...result].sort((a, b) => b.precio - a.precio);
+        break;
       default:
-        result = [...result].sort((a, b) => a.nombre.localeCompare(b.nombre))
+        result = [...result].sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
-    return result
-  }, [inStockProducts, search, sortBy])
+    return result;
+  }, [inStockProducts, search, sortBy]);
 
-  const cartCount = cart.reduce((sum, i) => sum + i.cantidad, 0)
+  const cartCount = cart.reduce((sum, i) => sum + i.cantidad, 0);
+
   const cartTotal = cart.reduce((sum, item) => {
-    const product = products.find((p) => p.id === item.productId)
-    return sum + (product ? product.precio * item.cantidad : 0)
-  }, 0)
+    const product = products.find((p) => p.id === item.productId);
+    return sum + (product ? product.precio * item.cantidad : 0);
+  }, 0);
 
   function getCartQty(productId: string) {
-    return cart.find((i) => i.productId === productId)?.cantidad || 0
+    return cart.find((i) => i.productId === productId)?.cantidad || 0;
   }
 
   function addToCart(productId: string) {
-    const product = products.find((p) => p.id === productId)
-    if (!product) return
-    const existing = cart.find((i) => i.productId === productId)
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
+    const existing = cart.find((i) => i.productId === productId);
+
     if (existing) {
       if (existing.cantidad >= product.stock) {
-        toast.error("No hay mas stock disponible")
-        return
+        toast.error("No hay mas stock disponible");
+        return;
       }
-      setCart(cart.map((i) => i.productId === productId ? { ...i, cantidad: i.cantidad + 1 } : i))
+      setCart(
+        cart.map((i) =>
+          i.productId === productId ? { ...i, cantidad: i.cantidad + 1 } : i
+        )
+      );
     } else {
-      setCart([...cart, { productId, cantidad: 1 }])
+      setCart([...cart, { productId, cantidad: 1 }]);
     }
   }
 
   function removeFromCart(productId: string) {
-    const existing = cart.find((i) => i.productId === productId)
-    if (!existing) return
+    const existing = cart.find((i) => i.productId === productId);
+    if (!existing) return;
+
     if (existing.cantidad <= 1) {
-      setCart(cart.filter((i) => i.productId !== productId))
+      setCart(cart.filter((i) => i.productId !== productId));
     } else {
-      setCart(cart.map((i) => i.productId === productId ? { ...i, cantidad: i.cantidad - 1 } : i))
+      setCart(
+        cart.map((i) =>
+          i.productId === productId ? { ...i, cantidad: i.cantidad - 1 } : i
+        )
+      );
     }
   }
 
   function deleteFromCart(productId: string) {
-    setCart(cart.filter((i) => i.productId !== productId))
+    setCart(cart.filter((i) => i.productId !== productId));
   }
 
-  function handleCheckout() {
+  // ✅ AHORA CREA PEDIDO EN BACKEND ANTES DE ABRIR WHATSAPP
+  async function handleCheckout() {
+    if (sending) return;
+
     if (!contacto.trim()) {
-      toast.error("Ingresa tu nombre de contacto")
-      return
+      toast.error("Ingresa tu nombre de contacto");
+      return;
     }
-    if (cart.length === 0) return
+    if (cart.length === 0) return;
 
-    // Create pre-sale in store
-    store.createPreSale({
-      items: cart.map((i) => ({ productId: i.productId, cantidad: i.cantidad })),
-      contacto: contacto.trim(),
-    })
+    setSending(true);
+    try {
+      // 1) crear venta/pedido PENDIENTE en backend (NO descuenta stock)
+      await crearPedidoPendiente({
+        cliente: contacto.trim(),
+        origen: "catalogo_web",
+        observacion: "Pedido desde catálogo web (WhatsApp)",
+        items: cart.map((i) => ({
+          productoId: i.productId,
+          cantidad: i.cantidad,
+        })),
+      });
 
-    // Build WhatsApp message and open
-    const msg = buildWhatsAppMessage(cart, products, contacto.trim())
-    const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`
-    window.open(url, "_blank")
+      // 2) abrir whatsapp con el detalle (tu flujo actual)
+      const msg = buildWhatsAppMessage(cart, products, contacto.trim());
+      const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+      window.open(url, "_blank");
 
-    toast.success("Pedido enviado! Te redirigimos a WhatsApp")
-    setCart([])
-    setContacto("")
-    setCartOpen(false)
+      toast.success("Pedido enviado! Te redirigimos a WhatsApp");
+      setCart([]);
+      setContacto("");
+      setCartOpen(false);
+    } catch (e: any) {
+      toast.error(
+        e?.message || "No se pudo crear el pedido. Intenta nuevamente."
+      );
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -150,8 +219,12 @@ export default function CatalogoPage() {
               <Wrench className="h-4 w-4 text-primary-foreground" />
             </div>
             <div className="leading-none">
-              <span className="text-sm font-bold text-foreground">Stock Repuestos</span>
-              <span className="hidden sm:block text-[10px] text-muted-foreground leading-tight">Catalogo online</span>
+              <span className="text-sm font-bold text-foreground">
+                Stock Repuestos
+              </span>
+              <span className="hidden sm:block text-[10px] text-muted-foreground leading-tight">
+                Catalogo online
+              </span>
             </div>
           </div>
           <div className="ml-auto">
@@ -185,11 +258,16 @@ export default function CatalogoPage() {
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${showFilters ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground ring-1 ring-border"}`}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                showFilters
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground ring-1 ring-border"
+              }`}
             >
               <Filter className="h-4 w-4" />
             </button>
           </div>
+
           {showFilters && (
             <div className="flex items-center gap-2 pb-1">
               {(
@@ -213,30 +291,40 @@ export default function CatalogoPage() {
               ))}
             </div>
           )}
+
           <p className="text-xs text-muted-foreground">
-            {filtered.length} producto{filtered.length !== 1 ? "s" : ""} disponible{filtered.length !== 1 ? "s" : ""}
+            {filtered.length} producto{filtered.length !== 1 ? "s" : ""}{" "}
+            disponible{filtered.length !== 1 ? "s" : ""}
           </p>
         </div>
       </div>
 
       {/* Product Grid */}
       <div className="mx-auto max-w-5xl px-4 py-4 lg:px-6 lg:py-6">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">
+            Cargando productos...
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
               <Package className="h-8 w-8 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Sin resultados</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                Sin resultados
+              </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                {search ? `No encontramos productos para "${search}"` : "No hay productos disponibles"}
+                {search
+                  ? `No encontramos productos para "${search}"`
+                  : "No hay productos disponibles"}
               </p>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((product) => {
-              const qty = getCartQty(product.id)
+              const qty = getCartQty(product.id);
               return (
                 <div
                   key={product.id}
@@ -257,13 +345,17 @@ export default function CatalogoPage() {
                       </div>
                     )}
                   </div>
+
                   <div className="flex flex-1 flex-col gap-1.5 p-4 pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="text-sm font-semibold text-foreground leading-snug">
                         {product.nombre}
                       </h3>
                       {product.ubicacion && (
-                        <Badge variant="secondary" className="shrink-0 text-[10px] font-bold">
+                        <Badge
+                          variant="secondary"
+                          className="shrink-0 text-[10px] font-bold"
+                        >
                           {product.ubicacion}
                         </Badge>
                       )}
@@ -279,7 +371,8 @@ export default function CatalogoPage() {
                         ${formatPrice(product.precio)}
                       </p>
                       <p className="text-[10px] text-muted-foreground tabular-nums">
-                        {product.stock} disponible{product.stock !== 1 ? "s" : ""}
+                        {product.stock} disponible
+                        {product.stock !== 1 ? "s" : ""}
                       </p>
                     </div>
 
@@ -314,7 +407,7 @@ export default function CatalogoPage() {
                     )}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
@@ -360,7 +453,9 @@ export default function CatalogoPage() {
                   <ShoppingCart className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-foreground">Tu pedido</h2>
+                  <h2 className="text-base font-bold text-foreground">
+                    Tu pedido
+                  </h2>
                   <p className="text-xs text-muted-foreground">
                     {cartCount} producto{cartCount !== 1 ? "s" : ""}
                   </p>
@@ -379,14 +474,19 @@ export default function CatalogoPage() {
               {cart.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-16 text-center">
                   <Package className="h-12 w-12 text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">El carrito esta vacio</p>
+                  <p className="text-sm text-muted-foreground">
+                    El carrito esta vacio
+                  </p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {cart.map((item) => {
-                    const product = products.find((p) => p.id === item.productId)
-                    if (!product) return null
-                    const subtotal = product.precio * item.cantidad
+                    const product = products.find(
+                      (p) => p.id === item.productId
+                    );
+                    if (!product) return null;
+                    const subtotal = product.precio * item.cantidad;
+
                     return (
                       <div
                         key={item.productId}
@@ -430,7 +530,7 @@ export default function CatalogoPage() {
                           </button>
                         </div>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               )}
@@ -440,7 +540,9 @@ export default function CatalogoPage() {
             {cart.length > 0 && (
               <div className="border-t border-border px-4 py-4">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-muted-foreground">Total del pedido</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Total del pedido
+                  </span>
                   <span className="text-xl font-bold tabular-nums text-foreground">
                     ${formatPrice(cartTotal)}
                   </span>
@@ -448,7 +550,10 @@ export default function CatalogoPage() {
 
                 <div className="flex flex-col gap-3 mb-4">
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="contacto" className="text-sm font-medium text-foreground">
+                    <label
+                      htmlFor="contacto"
+                      className="text-sm font-medium text-foreground"
+                    >
                       Tu nombre <span className="text-destructive">*</span>
                     </label>
                     <Input
@@ -463,12 +568,13 @@ export default function CatalogoPage() {
 
                 <Button
                   onClick={handleCheckout}
-                  disabled={!contacto.trim()}
+                  disabled={!contacto.trim() || sending}
                   className="h-12 w-full gap-2 rounded-xl text-base shadow-sm bg-[#25D366] hover:bg-[#1fb855] text-white"
                 >
                   <Send className="h-4 w-4" />
-                  Enviar pedido por WhatsApp
+                  {sending ? "Enviando..." : "Enviar pedido por WhatsApp"}
                 </Button>
+
                 <p className="mt-2 text-center text-[10px] text-muted-foreground">
                   Se abrira WhatsApp con el detalle de tu pedido
                 </p>
@@ -478,5 +584,5 @@ export default function CatalogoPage() {
         </>
       )}
     </div>
-  )
+  );
 }
