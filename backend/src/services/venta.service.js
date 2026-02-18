@@ -3,6 +3,61 @@ const Producto = require("../models/producto.model");
 const MovimientoStock = require("../models/movimientoStock.model");
 const mongoose = require("mongoose");
 
+function normalizeEnvio(payload = {}) {
+  const envioIn = payload.envio || {};
+  const tipo = envioIn.tipo || "retiro";
+
+  const envio = {
+    tipo,
+    cedula: envioIn.cedula ? String(envioIn.cedula).trim() : undefined,
+    nombre: envioIn.nombre ? String(envioIn.nombre).trim() : undefined,
+    telefono: envioIn.telefono ? String(envioIn.telefono).trim() : undefined,
+    localidad: envioIn.localidad ? String(envioIn.localidad).trim() : undefined,
+    empresaEnvio: envioIn.empresaEnvio
+      ? String(envioIn.empresaEnvio).trim()
+      : undefined,
+  };
+
+  // ✅ si no es interior, limpiamos todo (evita basura guardada)
+  if (tipo !== "interior") {
+    envio.cedula = undefined;
+    envio.nombre = undefined;
+    envio.telefono = undefined;
+    envio.localidad = undefined;
+    envio.empresaEnvio = undefined;
+  }
+
+  return envio;
+}
+
+function validateEnvio(envio) {
+  const allowed = ["retiro", "montevideo", "interior"];
+  if (!allowed.includes(envio.tipo)) {
+    const err = new Error("envio.tipo inválido");
+    err.status = 400;
+    throw err;
+  }
+
+  if (envio.tipo === "interior") {
+    const requiredFields = [
+      "cedula",
+      "nombre",
+      "telefono",
+      "localidad",
+      "empresaEnvio",
+    ];
+    const missing = requiredFields.filter((k) => !envio[k]);
+
+    if (missing.length) {
+      const err = new Error(
+        `Faltan datos para envío al interior: ${missing.join(", ")}`
+      );
+      err.status = 400;
+      throw err;
+    }
+  }
+}
+
 class VentaService {
   /* =====================================================
      CREAR (siempre PENDIENTE)
@@ -19,6 +74,10 @@ class VentaService {
     }
 
     const origen = payload.origen || "admin";
+
+    // ✅ NUEVO: envío
+    const envio = normalizeEnvio(payload);
+    validateEnvio(envio);
 
     // Armar items con snapshot desde Producto
     const items = [];
@@ -46,7 +105,7 @@ class VentaService {
 
       items.push({
         productoId: producto._id,
-        nombreProducto: producto.nombre, // ✅ clave
+        nombreProducto: producto.nombre, // ✅ snapshot
         cantidad,
         precioUnitario: producto.precio,
         moneda: producto.moneda,
@@ -59,6 +118,10 @@ class VentaService {
       origen,
       observacion: payload.observacion ?? "",
       estado: "pendiente",
+
+      // ✅ NUEVO: guardamos envio
+      envio,
+
       items,
       // el modelo recalcula total/moneda en pre("validate"), pero igual lo pasamos
       total: items.reduce((acc, x) => acc + x.subtotal, 0),
@@ -91,6 +154,9 @@ class VentaService {
 
     if (filtros.estado) query.estado = filtros.estado;
     if (filtros.origen) query.origen = filtros.origen;
+
+    // ✅ NUEVO (opcional): filtrar por tipo de envio
+    if (filtros.envioTipo) query["envio.tipo"] = filtros.envioTipo;
 
     if (filtros.q) {
       query.cliente = { $regex: String(filtros.q), $options: "i" };
@@ -134,6 +200,13 @@ class VentaService {
       venta.observacion = payload.observacion ?? "";
     if (payload.origen !== undefined) venta.origen = payload.origen ?? "admin";
 
+    // ✅ NUEVO: actualizar envio si viene
+    if (payload.envio !== undefined) {
+      const envio = normalizeEnvio(payload);
+      validateEnvio(envio);
+      venta.envio = envio;
+    }
+
     if (payload.items !== undefined) {
       if (!Array.isArray(payload.items) || payload.items.length === 0) {
         const err = new Error("items inválidos");
@@ -166,7 +239,7 @@ class VentaService {
 
         items.push({
           productoId: producto._id,
-          nombreProducto: producto.nombre, // ✅ clave
+          nombreProducto: producto.nombre, // ✅ snapshot
           cantidad,
           precioUnitario: producto.precio,
           moneda: producto.moneda,

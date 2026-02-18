@@ -4,7 +4,7 @@ const router = express.Router();
 const ventaService = require("../services/venta.service");
 const adminAuth = require("../middlewares/admin-auth");
 
-// GET /api/ventas?estado=pendiente&origen=catalogo_web&q=martin&limit=50
+// GET /api/ventas?estado=pendiente&origen=catalogo_web&q=martin&limit=50&envioTipo=interior
 router.get("/", adminAuth, async (req, res, next) => {
   try {
     const ventas = await ventaService.listarVentas(req.query);
@@ -25,7 +25,8 @@ router.get("/:id", adminAuth, async (req, res, next) => {
 });
 
 // POST /api/ventas  (crea PENDIENTE)
-// Nota: si querés permitir que el catálogo cree ventas sin adminAuth, sacalo acá y validamos por origen.
+// Nota: si querés permitir que el catálogo cree ventas sin adminAuth, queda sin adminAuth.
+// Body soporta: cliente, origen, observacion, items, envio{tipo, cedula, nombre, telefono, localidad, empresaEnvio}
 router.post("/", async (req, res, next) => {
   try {
     const venta = await ventaService.crearVenta(req.body);

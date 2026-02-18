@@ -22,6 +22,7 @@ import {
   fetchCatalogoProductos,
   crearPedidoPendiente,
   type CatalogoProducto,
+  type EnvioPayload,
 } from "@/lib/api/catalogo";
 
 interface CartItem {
@@ -34,7 +35,8 @@ const WA_NUMBER = "59897933160";
 function buildWhatsAppMessage(
   items: CartItem[],
   products: CatalogoProducto[],
-  contacto: string
+  contacto: string,
+  envio?: any
 ) {
   let msg = `Hola! Soy *${contacto}*.\nSolicito los siguientes productos:\n\n`;
   let total = 0;
@@ -52,7 +54,14 @@ function buildWhatsAppMessage(
       product.precio
     )}\n   Subtotal: $${formatPrice(subtotal)}\n\n`;
   });
-
+  if (envio?.tipo === "interior") {
+    msg += `\n📦 *Envío al interior*\n`;
+    msg += `CI: ${envio.cedula}\n`;
+    msg += `Nombre: ${envio.nombre}\n`;
+    msg += `Localidad: ${envio.localidad}\n`;
+    msg += `Empresa: ${envio.empresaEnvio}\n`;
+    msg += `Teléfono: ${envio.telefono}\n`;
+  }
   msg += `---\n*TOTAL: $${formatPrice(
     total
   )}*\n\nAguardo confirmacion. Gracias!`;
@@ -64,6 +73,12 @@ export default function CatalogoPage() {
   const [products, setProducts] = useState<CatalogoProducto[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [ci, setCi] = useState("");
+  const [localidad, setLocalidad] = useState("");
+  const [empresaEnvio, setEmpresaEnvio] = useState("");
+  const [telefonoContacto, setTelefonoContacto] = useState("");
+
+  const [envioInterior, setEnvioInterior] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -94,6 +109,18 @@ export default function CatalogoPage() {
   );
 
   const inStockProducts = products.filter((p) => p.stock > 0);
+  const envio: EnvioPayload = envioInterior
+    ? {
+        tipo: "interior",
+        cedula: ci.trim(),
+        nombre: contacto.trim(),
+        localidad: localidad.trim(),
+        empresaEnvio,
+        telefono: telefonoContacto.trim(),
+      }
+    : {
+        tipo: "retiro",
+      };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -185,6 +212,7 @@ export default function CatalogoPage() {
         cliente: contacto.trim(),
         origen: "catalogo_web",
         observacion: "Pedido desde catálogo web (WhatsApp)",
+        envio,
         items: cart.map((i) => ({
           productoId: i.productId,
           cantidad: i.cantidad,
@@ -192,7 +220,8 @@ export default function CatalogoPage() {
       });
 
       // 2) abrir whatsapp con el detalle (tu flujo actual)
-      const msg = buildWhatsAppMessage(cart, products, contacto.trim());
+      const msg = buildWhatsAppMessage(cart, products, contacto.trim(), envio);
+
       const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
       window.open(url, "_blank");
 
@@ -469,8 +498,8 @@ export default function CatalogoPage() {
               </button>
             </div>
 
-            {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            {/* ✅ Scroll area: items + form */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 pb-44">
               {cart.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-16 text-center">
                   <Package className="h-12 w-12 text-muted-foreground/30" />
@@ -479,67 +508,183 @@ export default function CatalogoPage() {
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2.5">
-                  {cart.map((item) => {
-                    const product = products.find(
-                      (p) => p.id === item.productId
-                    );
-                    if (!product) return null;
-                    const subtotal = product.precio * item.cantidad;
+                <>
+                  {/* Items */}
+                  <div className="flex flex-col gap-2.5">
+                    {cart.map((item) => {
+                      const product = products.find(
+                        (p) => p.id === item.productId
+                      );
+                      if (!product) return null;
+                      const subtotal = product.precio * item.cantidad;
 
-                    return (
-                      <div
-                        key={item.productId}
-                        className="flex items-center gap-3 rounded-xl bg-muted/30 p-3 ring-1 ring-border/50"
+                      return (
+                        <div
+                          key={item.productId}
+                          className="flex items-center gap-3 rounded-xl bg-muted/30 p-3 ring-1 ring-border/50"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {product.nombre}
+                            </p>
+                            <p className="text-xs text-muted-foreground tabular-nums">
+                              ${formatPrice(product.precio)} c/u
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => removeFromCart(item.productId)}
+                              className="flex h-7 w-7 items-center justify-center rounded-md bg-card text-foreground ring-1 ring-border transition-colors hover:bg-muted active:scale-95"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-7 text-center text-xs font-bold tabular-nums">
+                              {item.cantidad}
+                            </span>
+                            <button
+                              onClick={() => addToCart(item.productId)}
+                              className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 active:scale-95 disabled:opacity-50"
+                              disabled={item.cantidad >= product.stock}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-0.5 shrink-0 ml-1">
+                            <span className="text-sm font-bold tabular-nums text-foreground">
+                              ${formatPrice(subtotal)}
+                            </span>
+                            <button
+                              onClick={() => deleteFromCart(item.productId)}
+                              className="text-[10px] text-destructive hover:underline"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ✅ Form */}
+                  <div className="mt-4 flex flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label
+                        htmlFor="contacto"
+                        className="text-sm font-medium text-foreground"
                       >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">
-                            {product.nombre}
-                          </p>
-                          <p className="text-xs text-muted-foreground tabular-nums">
-                            ${formatPrice(product.precio)} c/u
-                          </p>
+                        Nombre completo{" "}
+                        <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="contacto"
+                        placeholder="Nombre para identificarte..."
+                        value={contacto}
+                        onChange={(e) => setContacto(e.target.value)}
+                        className="h-11 rounded-xl"
+                      />
+                    </div>
+
+                    {/* Envío interior */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="envioInterior"
+                        checked={envioInterior}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setEnvioInterior(next);
+                          if (!next) {
+                            setCi("");
+                            setLocalidad("");
+                            setEmpresaEnvio("");
+                            setTelefonoContacto("");
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <label
+                        htmlFor="envioInterior"
+                        className="text-sm font-medium text-foreground"
+                      >
+                        Envío al interior
+                      </label>
+                    </div>
+
+                    {envioInterior && (
+                      <div className="flex flex-col gap-3 rounded-xl bg-muted/30 p-3 ring-1 ring-border">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-sm font-medium">
+                            CI <span className="text-destructive">*</span>
+                          </label>
+                          <Input
+                            value={ci}
+                            onChange={(e) => setCi(e.target.value)}
+                            placeholder="Ej: 4.123.456-7"
+                            className="h-10 rounded-lg"
+                          />
                         </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => removeFromCart(item.productId)}
-                            className="flex h-7 w-7 items-center justify-center rounded-md bg-card text-foreground ring-1 ring-border transition-colors hover:bg-muted active:scale-95"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </button>
-                          <span className="w-7 text-center text-xs font-bold tabular-nums">
-                            {item.cantidad}
-                          </span>
-                          <button
-                            onClick={() => addToCart(item.productId)}
-                            className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 active:scale-95 disabled:opacity-50"
-                            disabled={item.cantidad >= product.stock}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-sm font-medium">
+                            Localidad{" "}
+                            <span className="text-destructive">*</span>
+                          </label>
+                          <Input
+                            value={localidad}
+                            onChange={(e) => setLocalidad(e.target.value)}
+                            placeholder="Ciudad / Departamento"
+                            className="h-10 rounded-lg"
+                          />
                         </div>
-                        <div className="flex flex-col items-end gap-0.5 shrink-0 ml-1">
-                          <span className="text-sm font-bold tabular-nums text-foreground">
-                            ${formatPrice(subtotal)}
-                          </span>
-                          <button
-                            onClick={() => deleteFromCart(item.productId)}
-                            className="text-[10px] text-destructive hover:underline"
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-sm font-medium">
+                            Empresa de envío{" "}
+                            <span className="text-destructive">*</span>
+                          </label>
+                          <select
+                            value={empresaEnvio}
+                            onChange={(e) => setEmpresaEnvio(e.target.value)}
+                            className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
                           >
-                            Quitar
-                          </button>
+                            <option value="">Seleccionar empresa</option>
+                            <option value="DAC">DAC</option>
+                            <option value="UES">UES</option>
+                            <option value="Mirtrans">Mirtrans</option>
+                            <option value="Agencia Central">
+                              Agencia Central
+                            </option>
+                            <option value="Otra">Otra</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-sm font-medium">
+                            Teléfono de contacto{" "}
+                            <span className="text-destructive">*</span>
+                          </label>
+                          <Input
+                            value={telefonoContacto}
+                            onChange={(e) =>
+                              setTelefonoContacto(e.target.value)
+                            }
+                            placeholder="Ej: 099123456"
+                            className="h-10 rounded-lg"
+                          />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
-            {/* Cart Footer */}
+            {/* ✅ Sticky Footer: total + botón */}
             {cart.length > 0 && (
-              <div className="border-t border-border px-4 py-4">
-                <div className="flex items-center justify-between mb-4">
+              <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur px-4 py-4">
+                <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-muted-foreground">
                     Total del pedido
                   </span>
@@ -548,31 +693,25 @@ export default function CatalogoPage() {
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-3 mb-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label
-                      htmlFor="contacto"
-                      className="text-sm font-medium text-foreground"
-                    >
-                      Tu nombre <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      id="contacto"
-                      placeholder="Nombre para identificarte..."
-                      value={contacto}
-                      onChange={(e) => setContacto(e.target.value)}
-                      className="h-11 rounded-xl"
-                    />
-                  </div>
-                </div>
-
                 <Button
                   onClick={handleCheckout}
-                  disabled={!contacto.trim() || sending}
+                  disabled={
+                    !contacto.trim() ||
+                    sending ||
+                    (envioInterior &&
+                      (!ci.trim() ||
+                        !localidad.trim() ||
+                        !empresaEnvio ||
+                        !telefonoContacto.trim()))
+                  }
                   className="h-12 w-full gap-2 rounded-xl text-base shadow-sm bg-[#25D366] hover:bg-[#1fb855] text-white"
                 >
                   <Send className="h-4 w-4" />
-                  {sending ? "Enviando..." : "Enviar pedido por WhatsApp"}
+                  {sending
+                    ? "Enviando..."
+                    : envioInterior
+                    ? "Enviar pedido con envío"
+                    : "Enviar pedido por WhatsApp"}
                 </Button>
 
                 <p className="mt-2 text-center text-[10px] text-muted-foreground">

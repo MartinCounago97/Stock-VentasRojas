@@ -11,6 +11,15 @@ export type CatalogoProducto = {
   caracteristicas?: string;
 };
 
+export type EnvioPayload = {
+  tipo: "retiro" | "montevideo" | "interior";
+  cedula?: string;
+  nombre?: string;
+  telefono?: string;
+  localidad?: string;
+  empresaEnvio?: string;
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
 
 function mapProducto(p: any): CatalogoProducto {
@@ -55,6 +64,7 @@ export async function crearPedidoPendiente(input: {
   cliente: string;
   origen: "catalogo_web" | "whatsapp" | "admin";
   observacion?: string;
+  envio?: EnvioPayload;
   items: { productoId: string; cantidad: number }[];
 }) {
   const res = await fetch(`${API_URL}/api/ventas`, {

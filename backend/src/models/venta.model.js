@@ -39,6 +39,53 @@ const VentaSchema = new mongoose.Schema(
 
     observacion: { type: String, default: "", trim: true },
 
+    // ✅ NUEVO: datos de envío
+    envio: {
+      tipo: {
+        type: String,
+        enum: ["retiro", "montevideo", "interior"],
+        default: "retiro",
+        index: true,
+      },
+
+      // ✅ solo si tipo === "interior"
+      cedula: {
+        type: String,
+        trim: true,
+        required: function () {
+          return this.envio?.tipo === "interior";
+        },
+      },
+      nombre: {
+        type: String,
+        trim: true,
+        required: function () {
+          return this.envio?.tipo === "interior";
+        },
+      },
+      telefono: {
+        type: String,
+        trim: true,
+        required: function () {
+          return this.envio?.tipo === "interior";
+        },
+      },
+      localidad: {
+        type: String,
+        trim: true,
+        required: function () {
+          return this.envio?.tipo === "interior";
+        },
+      },
+      empresaEnvio: {
+        type: String,
+        trim: true,
+        required: function () {
+          return this.envio?.tipo === "interior";
+        },
+      },
+    },
+
     items: { type: [VentaItemSchema], required: true, default: [] },
 
     total: { type: Number, required: true, min: 0, index: true },
@@ -88,6 +135,14 @@ VentaSchema.pre("validate", function () {
   }
 
   this.total = total;
+
+  // ✅ limpieza opcional: si NO es interior, vaciamos datos para evitar basura guardada
+  if (this.envio?.tipo !== "interior" && this.envio) {
+    this.envio.cedula = undefined;
+    this.envio.telefono = undefined;
+    this.envio.localidad = undefined;
+    this.envio.empresaEnvio = undefined;
+  }
 });
 
 module.exports = mongoose.model("Venta", VentaSchema);
