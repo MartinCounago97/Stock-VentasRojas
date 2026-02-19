@@ -45,6 +45,7 @@ import {
   View,
   StyleSheet,
   pdf,
+  Image,
 } from "@react-pdf/renderer";
 
 import {
@@ -55,131 +56,190 @@ import {
 type Tab = "pendientes" | "confirmadas";
 
 const ticketStyles = StyleSheet.create({
-  page: { padding: 14, fontSize: 10 },
-  title: { fontSize: 13, marginBottom: 8 },
-  box: { border: "1px solid #ddd", padding: 10, borderRadius: 6 },
-  section: { marginBottom: 10 },
+  page: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 26, // ✅ reserva espacio para el footer
+    fontSize: 12,
+    fontFamily: "Helvetica",
+  },
+  note: {
+    marginTop: 8,
+    fontSize: 9,
+    color: "#6b7280",
+    textAlign: "center",
+  },
 
-  row: { flexDirection: "row", marginBottom: 6, alignItems: "flex-start" },
-  k: { width: 62, color: "#666" },
-  v: { flexGrow: 1, fontWeight: 700 },
+  // ✅ wrapper del contenido para que el footer quede abajo
+  content: {
+    flexGrow: 1,
+  },
 
-  hr: { marginTop: 8, borderTop: "1px solid #eee" },
+  // ✅ wrapper del footer (lo empuja al fondo)
+  footer: {
+    marginTop: "auto",
+    paddingTop: 10,
+  },
 
-  th: {
+  footerRow: {
     flexDirection: "row",
-    borderBottom: "1px solid #ddd",
-    paddingBottom: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  footerItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  footerIcon: {
+    fontSize: 9,
+    color: "#6b7280",
+    fontWeight: 700,
+    marginRight: 4,
+  },
+
+  footerText: {
+    fontSize: 10,
+    color: "#111827",
+    fontWeight: 700,
+  },
+
+  footerSep: {
+    width: 1,
+    height: 10,
+    backgroundColor: "#e5e7eb",
+    marginHorizontal: 12,
+  },
+
+  logo: {
+    width: 220, // ✅ un poco más grande
+    height: 100,
+    objectFit: "contain",
+    alignSelf: "center",
     marginBottom: 6,
   },
-  td: { flexDirection: "row", marginBottom: 4 },
 
-  colName: { flexGrow: 1, paddingRight: 6 },
-  colQty: { width: 28, textAlign: "right" },
-  colSub: { width: 52, textAlign: "right" },
+  tagline: {
+    fontSize: 10,
+    color: "#6b7280",
+    textAlign: "center",
+    marginTop: -4,
+    marginBottom: 12,
+  },
 
-  footer: { marginTop: 10, fontSize: 8, color: "#666" },
+  card: {
+    border: "1px solid #e5e7eb",
+    borderRadius: 10,
+    padding: 12,
+  },
+
+  row: {
+    marginBottom: 10,
+  },
+
+  label: {
+    fontSize: 10,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+
+  value: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#111827",
+  },
+
+  divider: {
+    marginVertical: 10,
+    borderTop: "1px solid #e5e7eb",
+  },
 });
 
 function TicketPDF({ venta }: { venta: VentaAPI }) {
   const envio = venta?.envio;
 
+  // Solo etiqueta interior
+  if (!envio || envio.tipo !== "interior") {
+    return (
+      <Document>
+        <Page size="A6" style={ticketStyles.page}>
+          <Text style={ticketStyles.value}>
+            Esta venta no tiene envío interior.
+          </Text>
+          <Text style={ticketStyles.note}>
+            Solo se genera etiqueta para ventas con envío tipo "interior".
+          </Text>
+        </Page>
+      </Document>
+    );
+  }
+
+  const recibe = (envio.nombre || venta.cliente || "").trim() || "—";
+
   return (
     <Document>
-      {/* A6 para etiqueta. Si querés A4: size="A4" */}
-      <Page size="A6" style={ticketStyles.page}>
-        <Text style={ticketStyles.title}>Ticket / Etiqueta</Text>
+      <Page size="A6" style={ticketStyles.page} wrap={false}>
+        {/* ✅ Contenido (todo lo que puede “crecer”) */}
+        <View style={ticketStyles.content}>
+          {/* Logo */}
+          <Image src="/logo-tsi.png" style={ticketStyles.logo} />
+          <Text style={ticketStyles.tagline}>Importador de repuestos</Text>
 
-        <View style={[ticketStyles.box, ticketStyles.section]}>
-          <View style={ticketStyles.row}>
-            <Text style={ticketStyles.k}>Venta</Text>
-            <Text style={ticketStyles.v}>#{venta?._id ?? "-"}</Text>
-          </View>
+          <View style={ticketStyles.card}>
+            <View style={ticketStyles.row}>
+              <Text style={ticketStyles.label}>Envia</Text>
+              <Text style={ticketStyles.value}>TSI PARTS</Text>
+            </View>
 
-          <View style={ticketStyles.row}>
-            <Text style={ticketStyles.k}>Fecha</Text>
-            <Text style={ticketStyles.v}>
-              {new Date(venta.createdAt).toLocaleString()}
-            </Text>
-          </View>
+            <View style={ticketStyles.divider} />
 
-          <View style={ticketStyles.row}>
-            <Text style={ticketStyles.k}>Cliente</Text>
-            <Text style={ticketStyles.v}>{venta.cliente || "Mostrador"}</Text>
-          </View>
+            <View style={ticketStyles.row}>
+              <Text style={ticketStyles.label}>Recibe</Text>
+              <Text style={ticketStyles.value}>{recibe}</Text>
+            </View>
 
-          <View style={ticketStyles.row}>
-            <Text style={ticketStyles.k}>Origen</Text>
-            <Text style={ticketStyles.v}>{venta.origen}</Text>
-          </View>
+            <View style={ticketStyles.row}>
+              <Text style={ticketStyles.label}>Localidad</Text>
+              <Text style={ticketStyles.value}>{envio.localidad || "—"}</Text>
+            </View>
 
-          {!!envio?.tipo && (
-            <>
-              <View style={ticketStyles.hr} />
-              <View style={ticketStyles.row}>
-                <Text style={ticketStyles.k}>Envío</Text>
-                <Text style={ticketStyles.v}>{envio.tipo}</Text>
-              </View>
+            <View style={ticketStyles.row}>
+              <Text style={ticketStyles.label}>Cédula</Text>
+              <Text style={ticketStyles.value}>{envio.cedula || "—"}</Text>
+            </View>
 
-              {envio.tipo === "interior" && (
-                <>
-                  <View style={ticketStyles.row}>
-                    <Text style={ticketStyles.k}>Nombre</Text>
-                    <Text style={ticketStyles.v}>{envio.nombre || "—"}</Text>
-                  </View>
-                  <View style={ticketStyles.row}>
-                    <Text style={ticketStyles.k}>CI</Text>
-                    <Text style={ticketStyles.v}>{envio.cedula || "—"}</Text>
-                  </View>
-                  <View style={ticketStyles.row}>
-                    <Text style={ticketStyles.k}>Tel</Text>
-                    <Text style={ticketStyles.v}>{envio.telefono || "—"}</Text>
-                  </View>
-                  <View style={ticketStyles.row}>
-                    <Text style={ticketStyles.k}>Localidad</Text>
-                    <Text style={ticketStyles.v}>{envio.localidad || "—"}</Text>
-                  </View>
-                  <View style={ticketStyles.row}>
-                    <Text style={ticketStyles.k}>Empresa</Text>
-                    <Text style={ticketStyles.v}>
-                      {envio.empresaEnvio || "—"}
-                    </Text>
-                  </View>
-                </>
-              )}
-            </>
-          )}
-        </View>
+            <View style={ticketStyles.row}>
+              <Text style={ticketStyles.label}>Teléfono</Text>
+              <Text style={ticketStyles.value}>{envio.telefono || "—"}</Text>
+            </View>
 
-        <View style={[ticketStyles.box, ticketStyles.section]}>
-          <View style={ticketStyles.th}>
-            <Text style={[ticketStyles.colName, { fontWeight: 700 }]}>
-              Producto
-            </Text>
-            <Text style={[ticketStyles.colQty, { fontWeight: 700 }]}>Cant</Text>
-            <Text style={[ticketStyles.colSub, { fontWeight: 700 }]}>Subt</Text>
-          </View>
-
-          {venta.items.map((it, idx) => (
-            <View key={idx} style={ticketStyles.td}>
-              <Text style={ticketStyles.colName}>{it.nombreProducto}</Text>
-              <Text style={ticketStyles.colQty}>{it.cantidad}</Text>
-              <Text style={ticketStyles.colSub}>
-                ${formatPrice(it.subtotal)}
+            {/* ✅ Última fila sin margin extra */}
+            <View style={{ marginBottom: 0 }}>
+              <Text style={ticketStyles.label}>Agencia</Text>
+              <Text style={ticketStyles.value}>
+                {envio.empresaEnvio || "—"}
               </Text>
             </View>
-          ))}
-
-          <View style={ticketStyles.hr} />
-          <View style={ticketStyles.row}>
-            <Text style={ticketStyles.k}>TOTAL</Text>
-            <Text style={ticketStyles.v}>${formatPrice(venta.total)}</Text>
           </View>
         </View>
 
-        <Text style={ticketStyles.footer}>
-          Imprimir y pegar en el paquete (si corresponde).
-        </Text>
+        {/* ✅ Footer fijo abajo (NO pagina) */}
+        <View style={ticketStyles.footer} fixed>
+          <View style={ticketStyles.footerRow}>
+            <View style={ticketStyles.footerItemRow}>
+              <Text style={ticketStyles.footerIcon}>Tel:</Text>
+              <Text style={ticketStyles.footerText}>091616638</Text>
+            </View>
+
+            <View style={ticketStyles.footerSep} />
+
+            <View style={ticketStyles.footerItemRow}>
+              <Text style={ticketStyles.footerIcon}>IG:</Text>
+              <Text style={ticketStyles.footerText}>@tsi_partss</Text>
+            </View>
+          </View>
+        </View>
       </Page>
     </Document>
   );
@@ -187,12 +247,21 @@ function TicketPDF({ venta }: { venta: VentaAPI }) {
 
 async function descargarTicketPDF(venta: VentaAPI) {
   try {
+    if (!venta?.envio || venta.envio.tipo !== "interior") {
+      toast.error(
+        "Esta venta no tiene envío al interior (no se genera etiqueta)."
+      );
+      return;
+    }
+
     const blob = await pdf(<TicketPDF venta={venta} />).toBlob();
     const url = URL.createObjectURL(blob);
+
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ticket-${venta?._id ?? "venta"}.pdf`;
+    a.download = `etiqueta-${venta?._id ?? "venta"}.pdf`;
     a.click();
+
     URL.revokeObjectURL(url);
   } catch {
     toast.error("No se pudo generar el PDF");
