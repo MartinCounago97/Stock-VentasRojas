@@ -1,100 +1,150 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ShoppingCart,
   Plus,
   Trash2,
   ArrowRight,
   PackageOpen,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useProducts } from "@/hooks/use-store"
-import { store } from "@/lib/store"
-import { formatPrice } from "@/lib/format"
-import { toast } from "sonner"
+} from "@/components/ui/select";
+import { formatPrice } from "@/lib/format";
+import { toast } from "sonner";
+import { crearVenta, confirmarVenta } from "@/lib/api/ventas";
+import {
+  fetchCatalogoProductos,
+  type CatalogoProducto,
+} from "@/lib/api/catalogo";
 
 interface SaleItem {
-  productId: string
-  cantidad: string
+  productId: string;
+  cantidad: string;
 }
 
 export default function VenderPage() {
-  const router = useRouter()
-  const products = useProducts()
+  const router = useRouter();
+
+  // ✅ Productos reales desde backend (no useProducts mock)
+  const [products, setProducts] = useState<CatalogoProducto[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [items, setItems] = useState<SaleItem[]>([
     { productId: "", cantidad: "1" },
-  ])
-  const [cliente, setCliente] = useState("")
-  const [observacion, setObservacion] = useState("")
+  ]);
+  const [cliente, setCliente] = useState("");
+  const [observacion, setObservacion] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const data = await fetchCatalogoProductos();
+        if (mounted) setProducts(data);
+      } catch (e: any) {
+        toast.error(e?.message || "Error cargando productos");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   function addItem() {
-    setItems([...items, { productId: "", cantidad: "1" }])
+    setItems([...items, { productId: "", cantidad: "1" }]);
   }
 
   function removeItem(index: number) {
-    if (items.length <= 1) return
-    setItems(items.filter((_, i) => i !== index))
+    if (items.length <= 1) return;
+    setItems(items.filter((_, i) => i !== index));
   }
 
   function updateItem(index: number, field: keyof SaleItem, value: string) {
-    setItems(items.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
+    setItems(
+      items.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
   }
 
   const resolvedItems = items.map((item) => {
-    const product = products.find((p) => p.id === item.productId)
-    const cantidad = Number(item.cantidad) || 0
+    const product = products.find((p) => p.id === item.productId);
+    const cantidad = Number(item.cantidad) || 0;
     return {
       ...item,
       product,
       cantidad,
       subtotal: product ? product.precio * cantidad : 0,
       valid: !!product && cantidad > 0 && cantidad <= (product?.stock || 0),
-    }
-  })
+    };
+  });
 
-  const total = resolvedItems.reduce((sum, i) => sum + i.subtotal, 0)
+  const total = resolvedItems.reduce((sum, i) => sum + i.subtotal, 0);
+
   const allValid =
     resolvedItems.length > 0 &&
     resolvedItems.some((i) => i.productId) &&
-    resolvedItems.filter((i) => i.productId).every((i) => i.valid)
+    resolvedItems.filter((i) => i.productId).every((i) => i.valid);
 
-  // Get product IDs already selected
-  const selectedIds = items.map((i) => i.productId).filter(Boolean)
+  const selectedIds = items.map((i) => i.productId).filter(Boolean);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!allValid) return
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!allValid || creating) return;
 
-    const validItems = resolvedItems.filter((i) => i.productId && i.valid)
+    const validItems = resolvedItems.filter((i) => i.productId && i.valid);
 
-    const result = store.sellProducts({
-      items: validItems.map((i) => ({
-        productId: i.productId,
-        cantidad: i.cantidad,
-      })),
-      cliente: cliente.trim(),
-      observacion: observacion.trim(),
-    })
+    setCreating(true);
+    try {
+      // 1) Crear venta (pendiente)
+      const created = await crearVenta({
+        cliente: cliente.trim(),
+        origen: "admin",
+        observacion: observacion.trim(),
+        items: validItems.map((i) => ({
+          productoId: i.productId,
+          cantidad: i.cantidad,
+        })),
+      });
 
-    if (result) {
-      toast.success(`Venta registrada por $${formatPrice(result.total)}`)
-      router.push("/ventas")
-    } else {
-      toast.error("Error: stock insuficiente para alguno de los productos")
+      const ventaId = created?.data?._id;
+      if (!ventaId) throw new Error("No se pudo obtener el ID de la venta");
+
+      // 2) Confirmar (confirmada + descuenta stock + movimientos)
+      const confirmed = await confirmarVenta(ventaId);
+
+      toast.success(
+        `Venta confirmada por $${formatPrice(confirmed?.data?.total ?? total)}`
+      );
+      router.push("/ventas");
+    } catch (err: any) {
+      toast.error(err?.message || "Error confirmando la venta");
+    } finally {
+      setCreating(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
+        Cargando productos...
+      </div>
+    );
   }
 
   if (products.length === 0) {
@@ -115,7 +165,7 @@ export default function VenderPage() {
           <Button className="rounded-xl shadow-sm">Crear producto</Button>
         </Link>
       </div>
-    )
+    );
   }
 
   return (
@@ -135,9 +185,7 @@ export default function VenderPage() {
               <ShoppingCart className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">
-                Productos
-              </p>
+              <p className="text-sm font-semibold text-foreground">Productos</p>
               <p className="text-xs text-muted-foreground">
                 Agrega los items de la venta
               </p>
@@ -146,10 +194,11 @@ export default function VenderPage() {
 
           <div className="flex flex-col gap-4">
             {items.map((item, index) => {
-              const resolved = resolvedItems[index]
+              const resolved = resolvedItems[index];
               const availableProducts = products.filter(
                 (p) => p.id === item.productId || !selectedIds.includes(p.id)
-              )
+              );
+
               return (
                 <div
                   key={index}
@@ -162,9 +211,7 @@ export default function VenderPage() {
                       </Label>
                       <Select
                         value={item.productId}
-                        onValueChange={(v) =>
-                          updateItem(index, "productId", v)
-                        }
+                        onValueChange={(v) => updateItem(index, "productId", v)}
                       >
                         <SelectTrigger className="h-10 rounded-lg bg-card">
                           <SelectValue placeholder="Seleccionar..." />
@@ -183,6 +230,7 @@ export default function VenderPage() {
                         </SelectContent>
                       </Select>
                     </div>
+
                     {items.length > 1 && (
                       <Button
                         type="button"
@@ -209,9 +257,30 @@ export default function VenderPage() {
                           updateItem(index, "cantidad", e.target.value)
                         }
                         min={1}
-                        max={resolved.product?.stock || 999}
-                        className="h-10 rounded-lg bg-card"
+                        className={`h-10 rounded-lg bg-card ${
+                          resolved.product &&
+                          resolved.productId &&
+                          (resolved.cantidad <= 0 ||
+                            resolved.cantidad > resolved.product.stock)
+                            ? "ring-1 ring-destructive focus-visible:ring-destructive"
+                            : ""
+                        }`}
                       />
+
+                      {resolved.product &&
+                        resolved.cantidad > resolved.product.stock && (
+                          <p className="text-xs text-destructive font-medium">
+                            No podés vender más que el stock. Disponible:{" "}
+                            {resolved.product.stock}
+                          </p>
+                        )}
+
+                      {resolved.product && resolved.cantidad <= 0 && (
+                        <p className="text-xs text-destructive font-medium">
+                          La cantidad debe ser mayor a 0
+                        </p>
+                      )}
+
                       {resolved.product && (
                         <span className="text-[10px] text-muted-foreground">
                           Disponible: {resolved.product.stock}
@@ -241,7 +310,7 @@ export default function VenderPage() {
                       </p>
                     )}
                 </div>
-              )
+              );
             })}
 
             <Button
@@ -307,13 +376,13 @@ export default function VenderPage() {
           <Button
             type="submit"
             className="h-12 w-full rounded-xl text-base shadow-sm gap-2"
-            disabled={!allValid}
+            disabled={!allValid || creating}
           >
-            Confirmar venta
+            {creating ? "Confirmando..." : "Confirmar venta"}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       </form>
     </div>
-  )
+  );
 }

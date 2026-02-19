@@ -1,3 +1,5 @@
+import { readError } from "./ventas";
+
 export type CatalogoProducto = {
   id: string;
   nombre: string;
@@ -51,8 +53,8 @@ export async function fetchCatalogoProductos(): Promise<CatalogoProducto[]> {
   });
 
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Error catalogo productos: ${res.status} ${txt}`);
+    const msg = await readError(res);
+    throw new Error(msg || `HTTP ${res.status}`);
   }
 
   const json = await res.json();
