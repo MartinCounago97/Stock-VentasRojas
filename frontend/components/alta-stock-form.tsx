@@ -1,56 +1,62 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, ArrowRight, Package, PackagePlus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, Package, PackagePlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useProducts } from "@/hooks/use-store"
-import { store } from "@/lib/store"
-import { toast } from "sonner"
+} from "@/components/ui/select";
+import { useProducts } from "@/hooks/use-store";
+import { store } from "@/lib/store";
+import { toast } from "sonner";
 
 export function AltaStockForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const products = useProducts()
-  const preselected = searchParams.get("producto") || ""
-  const [selectedProductId, setSelectedProductId] = useState(preselected)
-  const [cantidad, setCantidad] = useState("")
-  const [observacion, setObservacion] = useState("")
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const products = useProducts();
+  const preselected = searchParams.get("producto") || "";
+  const [selectedProductId, setSelectedProductId] = useState(preselected);
+  const [cantidad, setCantidad] = useState("");
+  const [observacion, setObservacion] = useState("");
 
   useEffect(() => {
     if (preselected) {
-      setSelectedProductId(preselected)
+      setSelectedProductId(preselected);
     }
-  }, [preselected])
+  }, [preselected]);
 
-  const selectedProduct = products.find((p) => p.id === selectedProductId)
-  const cantidadNum = Number(cantidad) || 0
+  const selectedProduct = products.find((p) => p.id === selectedProductId);
+  const cantidadNum = Number(cantidad) || 0;
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedProductId || cantidadNum <= 0) return
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedProductId || cantidadNum <= 0) return;
 
-    store.addStock({
-      productId: selectedProductId,
-      cantidad: cantidadNum,
-      observacion,
-    })
+    try {
+      await store.addStock({
+        productId: selectedProductId,
+        cantidad: cantidadNum,
+        observacion,
+      });
 
-    toast.success(
-      `Se agregaron ${cantidadNum} unidades a ${selectedProduct?.nombre}`
-    )
-    router.push("/productos")
+      toast.success(
+        `Se agregaron ${cantidadNum} unidades a ${selectedProduct?.nombre}`
+      );
+      router.push("/productos");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "No se pudo dar de alta el stock");
+    }
   }
 
   return (
@@ -205,14 +211,14 @@ export function AltaStockForm() {
               <Button
                 type="submit"
                 className="h-12 w-full rounded-xl text-base shadow-sm"
-                disabled={!selectedProductId || cantidadNum <= 0}
+                disabled={!selectedProductId || cantidadNum <= 0 || loading}
               >
-                Confirmar alta de stock
+                {loading ? "Confirmando..." : "Confirmar alta de stock"}
               </Button>
             </div>
           </form>
         </div>
       )}
     </div>
-  )
+  );
 }

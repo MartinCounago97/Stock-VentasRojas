@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import Link from "next/link"
+import Link from "next/link";
 import {
   Package,
   TrendingUp,
@@ -9,19 +9,26 @@ import {
   PackagePlus,
   ShoppingCart,
   ArrowUpRight,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useProducts, useMovements } from "@/hooks/use-store"
-import { store } from "@/lib/store"
-import { formatDateShort } from "@/lib/format"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useProducts, useMovements } from "@/hooks/use-store";
+import { store } from "@/lib/store";
+import { formatDateShort } from "@/lib/format";
 
 export default function HomePage() {
-  const products = useProducts()
-  const movements = useMovements()
+  const products = useProducts();
+  const movements = useMovements();
 
-  const totalProducts = products.length
-  const totalStock = products.reduce((sum, p) => sum + p.stock, 0)
-  const lowStock = products.filter((p) => store.isLowStock(p)).length
+  const totalProducts = products.length;
+  const totalStock = products.reduce((sum, p) => sum + Number(p.stock ?? 0), 0);
+
+  // ✅ Back usa stockMinimo, store usa minStock => normalizamos acá sin romper tipos
+  const lowStock = products.filter((p: any) =>
+    store.isLowStock({
+      stock: Number(p.stock ?? 0),
+      minStock: p.minStock ?? p.stockMinimo, // soporta ambos nombres
+    })
+  ).length;
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-8">
@@ -66,9 +73,7 @@ export default function HomePage() {
               <p className="text-2xl font-bold tracking-tight text-foreground">
                 {lowStock}
               </p>
-              <p className="text-xs text-muted-foreground">
-                Stock bajo
-              </p>
+              <p className="text-xs text-muted-foreground">Stock bajo</p>
             </div>
           </div>
         </div>
@@ -83,12 +88,11 @@ export default function HomePage() {
             </div>
             <div>
               <p className="text-sm font-semibold">Nuevo</p>
-              <p className="text-xs text-primary-foreground/70">
-                Producto
-              </p>
+              <p className="text-xs text-primary-foreground/70">Producto</p>
             </div>
           </div>
         </Link>
+
         <Link href="/stock/alta" className="block">
           <div className="group flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border transition-all hover:shadow-md active:scale-[0.98]">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
@@ -98,24 +102,19 @@ export default function HomePage() {
               <p className="text-sm font-semibold text-foreground">
                 Alta stock
               </p>
-              <p className="text-xs text-muted-foreground">
-                Sumar uds.
-              </p>
+              <p className="text-xs text-muted-foreground">Sumar uds.</p>
             </div>
           </div>
         </Link>
+
         <Link href="/vender" className="block">
           <div className="group flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border transition-all hover:shadow-md active:scale-[0.98]">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-3/10">
               <ShoppingCart className="h-5 w-5 text-chart-3" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">
-                Vender
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Registrar venta
-              </p>
+              <p className="text-sm font-semibold text-foreground">Vender</p>
+              <p className="text-xs text-muted-foreground">Registrar venta</p>
             </div>
           </div>
         </Link>
@@ -135,6 +134,7 @@ export default function HomePage() {
             <ArrowUpRight className="h-3 w-3" />
           </Link>
         </div>
+
         <div className="rounded-2xl bg-card shadow-sm ring-1 ring-border overflow-hidden divide-y divide-border">
           {movements.length === 0 ? (
             <div className="px-4 py-10 text-center">
@@ -143,24 +143,22 @@ export default function HomePage() {
               </p>
             </div>
           ) : (
-            movements.slice(0, 5).map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center gap-3 px-4 py-3"
-              >
+            movements.slice(0, 5).map((m: any) => (
+              <div key={m.id} className="flex items-center gap-3 px-4 py-3">
                 <div
                   className={
                     "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold " +
                     (m.tipo === "VENTA"
                       ? "bg-destructive/10 text-destructive"
                       : m.tipo === "INGRESO_COMPRA"
-                        ? "bg-accent/10 text-accent"
-                        : "bg-primary/10 text-primary")
+                      ? "bg-accent/10 text-accent"
+                      : "bg-primary/10 text-primary")
                   }
                 >
                   {m.tipo === "VENTA" ? "-" : "+"}
                   {m.cantidad}
                 </div>
+
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">
                     {m.productName}
@@ -169,12 +167,15 @@ export default function HomePage() {
                     {m.tipo === "ALTA_INICIAL"
                       ? "Alta inicial"
                       : m.tipo === "INGRESO_COMPRA"
-                        ? "Compra"
-                        : "Venta"}
+                      ? "Compra"
+                      : "Venta"}
                   </p>
                 </div>
+
                 <span className="shrink-0 text-[11px] text-muted-foreground">
-                  {formatDateShort(m.fecha)}
+                  {formatDateShort(
+                    m.fecha instanceof Date ? m.fecha : new Date(m.fecha)
+                  )}
                 </span>
               </div>
             ))
@@ -208,5 +209,5 @@ export default function HomePage() {
         </div>
       )}
     </div>
-  )
+  );
 }

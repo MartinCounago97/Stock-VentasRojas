@@ -1,52 +1,55 @@
-"use client"
+"use client";
 
-import { useSyncExternalStore } from "react"
-import { store } from "@/lib/store"
+import { useEffect, useSyncExternalStore } from "react";
+import { store } from "@/lib/store";
+import type { Product, Movement, Sector, AppSettings } from "@/lib/store";
 
-export function useProducts() {
-  return useSyncExternalStore(
+export function useProducts(): Product[] {
+  const snapshot = useSyncExternalStore(
     store.subscribe,
     store.getProducts,
     store.getProducts
-  )
+  );
+
+  useEffect(() => {
+    store.hydrateFromApi();
+  }, []);
+
+  return snapshot;
 }
 
-export function useMovements() {
-  return useSyncExternalStore(
+export function useMovements(): Movement[] {
+  const snapshot = useSyncExternalStore(
     store.subscribe,
     store.getMovements,
     store.getMovements
-  )
+  );
+
+  useEffect(() => {
+    store.hydrateFromApi();
+  }, []);
+
+  return snapshot;
 }
 
-export function useSales() {
-  return useSyncExternalStore(
+export function useSectors(): Sector[] {
+  const snapshot = useSyncExternalStore(
     store.subscribe,
-    store.getSales,
-    store.getSales
-  )
+    store.getSectors,
+    store.getSectors
+  );
+
+  useEffect(() => {
+    store.hydrateFromApi();
+  }, []);
+
+  return snapshot;
 }
 
-export function useSettings() {
+export function useSettings(): AppSettings {
   return useSyncExternalStore(
     store.subscribe,
     store.getSettings,
     store.getSettings
-  )
-}
-
-export function useSectors() {
-  return useSyncExternalStore(
-    store.subscribe,
-    store.getSectors,
-    store.getSectors
-  )
-}
-
-export function usePreSales() {
-  return useSyncExternalStore(
-    store.subscribe,
-    store.getPreSales,
-    store.getPreSales
-  )
+  );
 }

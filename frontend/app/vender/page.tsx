@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { store } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -127,6 +128,7 @@ export default function VenderPage() {
 
       // 2) Confirmar (confirmada + descuenta stock + movimientos)
       const confirmed = await confirmarVenta(ventaId);
+      await store.refresh();
 
       toast.success(
         `Venta confirmada por $${formatPrice(confirmed?.data?.total ?? total)}`

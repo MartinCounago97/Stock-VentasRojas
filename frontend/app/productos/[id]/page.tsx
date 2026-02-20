@@ -1,30 +1,56 @@
-"use client"
+"use client";
 
-import { use } from "react"
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ArrowLeft, Pencil, Package, PackagePlus, MapPin } from "lucide-react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { store } from "@/lib/store"
-import { formatPrice } from "@/lib/format"
+import { use, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowLeft, Pencil, Package, PackagePlus, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { store } from "@/lib/store";
+import { formatPrice } from "@/lib/format";
 
 export default function ProductDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params)
-  const product = store.getProductById(id)
+  const { id } = use(params);
+
+  // ✅ esperar hidratación antes de decidir notFound
+  const [ready, setReady] = useState(store._hydrated);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await store.hydrateFromApi();
+      } finally {
+        if (mounted) setReady(true);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const product = useMemo(() => store.getProductById(id), [id, ready]);
+
+  if (!ready) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
+        Cargando producto...
+      </div>
+    );
+  }
 
   if (!product) {
-    notFound()
+    notFound();
   }
 
   const sector = product.ubicacion
     ? store.getSectorForUbicacion(product.ubicacion)
-    : undefined
+    : undefined;
 
   return (
     <div className="flex flex-col gap-5 p-4 lg:p-8 lg:max-w-2xl">
@@ -49,7 +75,6 @@ export default function ProductDetailPage({
         </Link>
       </div>
 
-      {/* Product Image */}
       {product.imagen ? (
         <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-muted ring-1 ring-border">
           <Image
@@ -66,7 +91,6 @@ export default function ProductDetailPage({
         </div>
       )}
 
-      {/* Location Card - Prominent */}
       <div className="rounded-2xl bg-chart-1/5 p-5 shadow-sm ring-1 ring-chart-1/20">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-chart-1/10">
@@ -114,7 +138,6 @@ export default function ProductDetailPage({
         </div>
       </div>
 
-      {/* Product Header Card */}
       <div className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
@@ -137,7 +160,6 @@ export default function ProductDetailPage({
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -160,7 +182,6 @@ export default function ProductDetailPage({
         </div>
       </div>
 
-      {/* Characteristics */}
       {product.caracteristicas && (
         <div className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
@@ -172,7 +193,6 @@ export default function ProductDetailPage({
         </div>
       )}
 
-      {/* Actions */}
       <div className="grid grid-cols-2 gap-3">
         <Link href={`/stock/alta?producto=${id}`}>
           <Button
@@ -191,5 +211,5 @@ export default function ProductDetailPage({
         </Link>
       </div>
     </div>
-  )
+  );
 }
