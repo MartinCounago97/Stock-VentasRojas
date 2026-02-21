@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import Link from "next/link"
+import Link from "next/link";
 import {
   Package,
   PackagePlus,
@@ -11,7 +11,7 @@ import {
   ShoppingCart,
   MapPin,
   ExternalLink,
-} from "lucide-react"
+} from "lucide-react";
 
 const menuItems = [
   {
@@ -71,7 +71,7 @@ const menuItems = [
     description: "Configurar stock minimo y preferencias",
     color: "bg-muted text-muted-foreground",
   },
-]
+];
 
 export default function MasPage() {
   return (
@@ -88,7 +88,9 @@ export default function MasPage() {
           <Link
             key={item.href}
             href={item.href}
-            {...("external" in item && item.external ? { target: "_blank" } : {})}
+            {...("external" in item && item.external
+              ? { target: "_blank" }
+              : {})}
           >
             <div className="flex items-center gap-4 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border transition-all hover:shadow-md active:scale-[0.98]">
               <div
@@ -115,12 +117,12 @@ export default function MasPage() {
 
       <div className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-          Stock Repuestos
+          TSI Parts
         </p>
         <p className="text-sm text-muted-foreground">
-          Sistema de inventario para autopartes v1.0
+          Sistema de gestion de stock y ventas TSI PARTS v1.0
         </p>
       </div>
     </div>
-  )
+  );
 }

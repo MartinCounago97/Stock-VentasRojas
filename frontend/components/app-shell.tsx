@@ -1,7 +1,8 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
   Home,
   ShoppingCart,
@@ -9,8 +10,8 @@ import {
   Receipt,
   MoreHorizontal,
   Wrench,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Inicio", icon: Home },
@@ -18,24 +19,22 @@ const navItems = [
   { href: "/stock", label: "Stock", icon: Package },
   { href: "/ventas", label: "Ventas", icon: Receipt },
   { href: "/mas", label: "Mas", icon: MoreHorizontal },
-]
+];
 
 function NavIcon({
   item,
   isActive,
 }: {
-  item: (typeof navItems)[0]
-  isActive: boolean
+  item: (typeof navItems)[0];
+  isActive: boolean;
 }) {
-  const Icon = item.icon
+  const Icon = item.icon;
   return (
     <Link
       href={item.href}
       className={cn(
         "flex flex-col items-center gap-0.5 rounded-xl px-4 py-1.5 text-[11px] font-medium transition-all",
-        isActive
-          ? "text-primary"
-          : "text-muted-foreground active:scale-95"
+        isActive ? "text-primary" : "text-muted-foreground active:scale-95"
       )}
     >
       <div
@@ -44,23 +43,21 @@ function NavIcon({
           isActive && "bg-primary/10"
         )}
       >
-        <Icon
-          className={cn("h-[18px] w-[18px]", isActive && "stroke-[2.5]")}
-        />
+        <Icon className={cn("h-[18px] w-[18px]", isActive && "stroke-[2.5]")} />
       </div>
       <span>{item.label}</span>
     </Link>
-  )
+  );
 }
 
 function DesktopNavItem({
   item,
   isActive,
 }: {
-  item: (typeof navItems)[0]
-  isActive: boolean
+  item: (typeof navItems)[0];
+  isActive: boolean;
 }) {
-  const Icon = item.icon
+  const Icon = item.icon;
   return (
     <Link
       href={item.href}
@@ -74,33 +71,39 @@ function DesktopNavItem({
       <Icon className={cn("h-[18px] w-[18px]", isActive && "stroke-[2.5]")} />
       <span>{item.label}</span>
     </Link>
-  )
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   // Public catalog page has its own standalone layout
   if (pathname.startsWith("/catalogo")) {
-    return <>{children}</>
+    return <>{children}</>;
   }
 
   const isActive = (href: string) => {
-    if (href === "/") return pathname === "/"
-    return pathname.startsWith(href)
-  }
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background lg:flex-row">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:w-[260px] lg:shrink-0 lg:flex-col lg:border-r lg:border-sidebar-border lg:bg-sidebar">
         <div className="flex h-16 items-center gap-2.5 px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary">
-            <Wrench className="h-4.5 w-4.5 text-sidebar-primary-foreground" />
+          <div className="relative h-14 w-14 overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-black/10">
+            <Image
+              src="/logo-tsi.png"
+              alt="TSI Parts"
+              fill
+              className="object-contain p-2"
+              priority
+            />
           </div>
           <div>
             <span className="text-sm font-bold text-sidebar-accent-foreground leading-none">
-              Stock Repuestos
+              TSI Parts
             </span>
             <span className="block text-[10px] text-sidebar-foreground/50 leading-tight">
               Inventario
@@ -138,17 +141,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Mobile Header */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-xl lg:h-16 lg:border-none lg:bg-transparent lg:px-8">
           <div className="flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Wrench className="h-4 w-4 text-primary-foreground" />
+            <div className="relative h-10 w-10 overflow-hidden rounded-lg">
+              <Image
+                src="/logo-tsi.png"
+                alt="TSI Parts"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
             <span className="text-[15px] font-bold text-foreground">
-              Stock Repuestos
+              TSI Parts
             </span>
           </div>
           <div className="hidden lg:block">
             <h1 className="text-lg font-semibold text-foreground">
-              {navItems.find((i) => isActive(i.href))?.label ||
-                "Stock Repuestos"}
+              {navItems.find((i) => isActive(i.href))?.label || "TSI Parts"}
             </h1>
           </div>
           <div className="ml-auto flex items-center gap-3">
@@ -165,13 +173,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile Bottom Navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-card/80 pb-[env(safe-area-inset-bottom)] pt-1.5 pb-2 backdrop-blur-xl lg:hidden">
         {navItems.map((item) => (
-          <NavIcon
-            key={item.href}
-            item={item}
-            isActive={isActive(item.href)}
-          />
+          <NavIcon key={item.href} item={item} isActive={isActive(item.href)} />
         ))}
       </nav>
     </div>
-  )
+  );
 }

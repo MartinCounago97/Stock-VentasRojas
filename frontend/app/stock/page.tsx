@@ -1,15 +1,31 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { PackagePlus, Plus } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { useProducts } from "@/hooks/use-store"
-import { store } from "@/lib/store"
-import { formatPrice } from "@/lib/format"
+import Link from "next/link";
+import { PackagePlus, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useProducts } from "@/hooks/use-store";
+import { store } from "@/lib/store";
+import { formatPrice } from "@/lib/format";
 
 export default function StockPage() {
-  const products = useProducts()
+  const products = useProducts();
+
+  const sortedProducts = [...products].sort((a, b) => {
+    const aLow = store.isLowStock(a);
+    const bLow = store.isLowStock(b);
+
+    if (aLow && !bLow) return -1;
+    if (!aLow && bLow) return 1;
+
+    if (!aLow && !bLow) {
+      if (a.stock !== b.stock) return a.stock - b.stock;
+      return a.nombre.localeCompare(b.nombre);
+    }
+
+    if (a.stock !== b.stock) return a.stock - b.stock;
+    return a.nombre.localeCompare(b.nombre);
+  });
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-8">
@@ -51,7 +67,7 @@ export default function StockPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {products.map((product) => (
+            {sortedProducts.map((product) => (
               <tr
                 key={product.id}
                 className="transition-colors hover:bg-muted/30"
@@ -99,7 +115,7 @@ export default function StockPage() {
 
       {/* Mobile Cards */}
       <div className="flex flex-col gap-2.5 lg:hidden">
-        {products.map((product) => (
+        {sortedProducts.map((product) => (
           <div
             key={product.id}
             className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border"
@@ -141,5 +157,5 @@ export default function StockPage() {
         ))}
       </div>
     </div>
-  )
+  );
 }

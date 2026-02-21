@@ -320,12 +320,18 @@ export default function CatalogoPage() {
       <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 lg:h-16 lg:px-6">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Wrench className="h-4 w-4 text-primary-foreground" />
+            <div className="relative h-12 w-12 sm:h-12 sm:w-12 lg:h-16 lg:w-16 overflow-hidden rounded-lg">
+              <Image
+                src="/logo-tsi.png"
+                alt="TSI Parts"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
             <div className="leading-none">
               <span className="text-sm font-bold text-foreground">
-                Stock Repuestos
+                TSI Parts
               </span>
               <span className="hidden sm:block text-[10px] text-muted-foreground leading-tight">
                 Catalogo online
@@ -405,7 +411,11 @@ export default function CatalogoPage() {
       </div>
 
       {/* Product Grid */}
-      <div className="mx-auto max-w-5xl px-4 py-4 lg:px-6 lg:py-6">
+      <div
+        className={`mx-auto max-w-5xl px-4 py-4 lg:px-6 lg:py-6 ${
+          cartCount > 0 ? "pb-28 sm:pb-6" : "pb-6"
+        }`}
+      >
         {loading ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
             Cargando productos...

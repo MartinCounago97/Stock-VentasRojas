@@ -1,17 +1,17 @@
-import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
-import { Toaster } from "sonner"
-import { AppShell } from "@/components/app-shell"
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
+import { Toaster } from "sonner";
+import { AppShell } from "@/components/app-shell";
 
-import "./globals.css"
+import "./globals.css";
 
-const _inter = Inter({ subsets: ["latin"] })
+const _inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Stock Repuestos - Inventario de autopartes",
+  title: "TSI Parts - Importador de repuestos",
   description:
     "Sistema de inventario para repuestos de autos. Gestion de productos, stock y ventas.",
-}
+};
 
 export const viewport: Viewport = {
   themeColor: "#2563eb",
@@ -19,12 +19,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="es">
@@ -33,5 +33,5 @@ export default function RootLayout({
         <Toaster richColors position="top-center" />
       </body>
     </html>
-  )
+  );
 }
