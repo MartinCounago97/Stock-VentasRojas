@@ -191,6 +191,19 @@ export const store = {
     return state.settings;
   },
 
+  async refreshProductsOnly() {
+    const jsonP = await fetchJson(`/api/productos?activo=true`);
+    const dataP = (jsonP?.data ?? []) as any[];
+    const products = dataP.map(mapApiProducto);
+
+    state = {
+      ...state,
+      products,
+    };
+
+    emitChange();
+  },
+
   isLowStock(product: { stock: number; minStock?: number }): boolean {
     const threshold = product.minStock ?? state.settings.minStockGlobal;
     return Number(product.stock ?? 0) <= threshold;
@@ -236,9 +249,6 @@ export const store = {
       .toUpperCase();
     if (!name) return;
 
-    // Creamos el sector con una ubicación inicial "SIN-UBICACION" para que exista en la UI,
-    // y luego el usuario agrega posiciones reales.
-    // Backend requiere { sector, codigo } para POST /api/ubicaciones
     const res = await fetch(`${API_URL}/api/ubicaciones`, {
       method: "POST",
       headers: adminHeaders(),

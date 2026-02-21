@@ -83,19 +83,80 @@ export default function CatalogoPage() {
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
+    async function load() {
       try {
         const data = await fetchCatalogoProductos();
-        if (mounted) setProducts(data);
+        if (!mounted) return;
+
+        setProducts(data);
+        setCart((prev) => {
+          const changes: string[] = [];
+
+          const next = prev
+            .map((it) => {
+              const p = data.find((x) => x.id === it.productId);
+
+              // producto ya no existe / no viene en catálogo
+              if (!p) {
+                changes.push(
+                  `Un producto del carrito ya no está disponible y fue removido.`
+                );
+                return null;
+              }
+
+              const maxQty = Math.max(0, Number(p.stock ?? 0));
+
+              // se quedó sin stock
+              if (maxQty <= 0) {
+                changes.push(
+                  `"${p.nombre}" se quedó sin stock y fue removido del carrito.`
+                );
+                return null;
+              }
+
+              // bajó stock y tengo más cantidad que el máximo actual
+              if (it.cantidad > maxQty) {
+                changes.push(
+                  `Bajó el stock de "${p.nombre}". Máximo disponible ahora: ${maxQty}.`
+                );
+                return { ...it, cantidad: maxQty };
+              }
+
+              return it;
+            })
+            .filter(Boolean) as CartItem[];
+
+          // 🔔 avisar solo si hubo cambios
+          if (changes.length > 0) {
+            toast.warning(
+              changes.length === 1
+                ? changes[0]
+                : `Actualizamos tu carrito por cambios de stock:\n• ${changes.join(
+                    "\n• "
+                  )}`
+            );
+          }
+
+          return next;
+        });
       } catch (e: any) {
-        toast.error(e?.message || "Error cargando productos");
+        if (mounted && loading)
+          toast.error(e?.message || "Error cargando productos");
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    }
+
+    load();
+
+    // 2) polling cada 15s
+    const id = setInterval(() => {
+      load();
+    }, 10000);
 
     return () => {
       mounted = false;
+      clearInterval(id);
     };
   }, []);
 
@@ -195,7 +256,6 @@ export default function CatalogoPage() {
     setCart(cart.filter((i) => i.productId !== productId));
   }
 
-  // ✅ AHORA CREA PEDIDO EN BACKEND ANTES DE ABRIR WHATSAPP
   async function handleCheckout() {
     if (sending) return;
 
@@ -207,6 +267,22 @@ export default function CatalogoPage() {
 
     setSending(true);
     try {
+      const fresh = await fetchCatalogoProductos();
+      setProducts(fresh);
+
+      for (const it of cart) {
+        const p = fresh.find((x) => x.id === it.productId);
+        if (!p || p.stock <= 0) {
+          throw new Error(
+            "Un producto del carrito ya no tiene stock. Actualizamos el catálogo."
+          );
+        }
+        if (it.cantidad > p.stock) {
+          throw new Error(
+            `Stock insuficiente para "${p.nombre}". Quedan ${p.stock}.`
+          );
+        }
+      }
       // 1) crear venta/pedido PENDIENTE en backend (NO descuenta stock)
       await crearPedidoPendiente({
         cliente: contacto.trim(),
@@ -220,7 +296,7 @@ export default function CatalogoPage() {
       });
 
       // 2) abrir whatsapp con el detalle (tu flujo actual)
-      const msg = buildWhatsAppMessage(cart, products, contacto.trim(), envio);
+      const msg = buildWhatsAppMessage(cart, fresh, contacto.trim(), envio);
 
       const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
       window.open(url, "_blank");
@@ -380,14 +456,6 @@ export default function CatalogoPage() {
                       <h3 className="text-sm font-semibold text-foreground leading-snug">
                         {product.nombre}
                       </h3>
-                      {product.ubicacion && (
-                        <Badge
-                          variant="secondary"
-                          className="shrink-0 text-[10px] font-bold"
-                        >
-                          {product.ubicacion}
-                        </Badge>
-                      )}
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
                       {product.caracteristicas}
