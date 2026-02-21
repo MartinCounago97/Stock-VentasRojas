@@ -1,44 +1,48 @@
-"use client"
+"use client";
 
-import { use, useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, Pencil, PackagePlus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { store } from "@/lib/store"
-import { LocationPicker } from "@/components/location-picker"
-import { ProductImageUpload } from "@/components/product-image-upload"
-import { toast } from "sonner"
+import { use, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Pencil, PackagePlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { store } from "@/lib/store";
+import { LocationPicker } from "@/components/location-picker";
+import { ProductImageUpload } from "@/components/product-image-upload";
+import { toast } from "sonner";
 
 export default function EditarProductoPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params)
-  const router = useRouter()
-  const product = store.getProductById(id)
+  const { id } = use(params);
+  const router = useRouter();
+  const product = store.getProductById(id);
 
-  const [nombre, setNombre] = useState("")
-  const [caracteristicas, setCaracteristicas] = useState("")
-  const [precio, setPrecio] = useState("")
-  const [minStock, setMinStock] = useState("")
-  const [ubicacion, setUbicacion] = useState("")
-  const [imagen, setImagen] = useState("")
+  const [nombre, setNombre] = useState("");
+  const [caracteristicas, setCaracteristicas] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [minStock, setMinStock] = useState("");
+  const [ubicacion, setUbicacion] = useState("");
+  const [ubicacionId, setUbicacionId] = useState(product?.ubicacionId ?? "");
+  const [imagen, setImagen] = useState("");
 
   useEffect(() => {
     if (product) {
-      setNombre(product.nombre)
-      setCaracteristicas(product.caracteristicas)
-      setPrecio(String(product.precio))
-      setMinStock(product.minStock !== undefined ? String(product.minStock) : "")
-      setUbicacion(product.ubicacion || "")
-      setImagen(product.imagen || "")
+      setNombre(product.nombre);
+      setCaracteristicas(product.caracteristicas);
+      setPrecio(String(product.precio));
+      setMinStock(
+        product.minStock !== undefined ? String(product.minStock) : ""
+      );
+      setUbicacionId(product.ubicacionId || ""); // ✅ CORRECTO
+      console.log("UBICACION ID:", product.ubicacionId);
+      setImagen(product.imagen || "");
     }
-  }, [product])
+  }, [product]);
 
   if (!product) {
     return (
@@ -52,25 +56,25 @@ export default function EditarProductoPage({
           </Button>
         </Link>
       </div>
-    )
+    );
   }
 
   function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+    e.preventDefault();
     if (!nombre.trim()) {
-      toast.error("El nombre es obligatorio")
-      return
+      toast.error("El nombre es obligatorio");
+      return;
     }
     store.updateProduct(id, {
       nombre: nombre.trim(),
       caracteristicas: caracteristicas.trim(),
       precio: Number(precio) || 0,
       minStock: minStock ? Number(minStock) : undefined,
-      ubicacion: ubicacion || undefined,
+      ubicacion: ubicacionId,
       imagen: imagen || undefined,
-    })
-    toast.success("Producto actualizado")
-    router.push("/productos")
+    });
+    toast.success("Producto actualizado");
+    router.push("/productos");
   }
 
   return (
@@ -156,7 +160,7 @@ export default function EditarProductoPage({
             </div>
           </div>
 
-          <LocationPicker value={ubicacion} onChange={setUbicacion} />
+          <LocationPicker value={ubicacionId} onChange={setUbicacionId} />
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="minStock" className="text-sm font-medium">
@@ -216,5 +220,5 @@ export default function EditarProductoPage({
         </form>
       </div>
     </div>
-  )
+  );
 }

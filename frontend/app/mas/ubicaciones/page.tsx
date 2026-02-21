@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
+import { useState } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
   MapPin,
@@ -11,104 +11,104 @@ import {
   ChevronRight,
   ArrowRightLeft,
   Package,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useSectors, useProducts } from "@/hooks/use-store"
-import { store } from "@/lib/store"
-import { toast } from "sonner"
+} from "@/components/ui/select";
+import { useSectors, useProducts } from "@/hooks/use-store";
+import { store } from "@/lib/store";
+import { toast } from "sonner";
 
 export default function UbicacionesPage() {
-  const sectors = useSectors()
-  const products = useProducts()
-  const [newSectorName, setNewSectorName] = useState("")
-  const [newPositions, setNewPositions] = useState<Record<string, string>>({})
+  const sectors = useSectors();
+  const products = useProducts();
+  const [newSectorName, setNewSectorName] = useState("");
+  const [newPositions, setNewPositions] = useState<Record<string, string>>({});
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(
     new Set(sectors.map((s) => s.id))
-  )
-  const [movingProduct, setMovingProduct] = useState<string | null>(null)
-  const [moveTarget, setMoveTarget] = useState("")
+  );
+  const [movingProduct, setMovingProduct] = useState<string | null>(null);
+  const [moveTarget, setMoveTarget] = useState("");
 
   function toggleSector(id: string) {
     setExpandedSectors((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   function handleAddSector(e: React.FormEvent) {
-    e.preventDefault()
-    if (!newSectorName.trim()) return
-    store.addSector(newSectorName.trim())
-    setNewSectorName("")
-    toast.success("Sector creado")
+    e.preventDefault();
+    if (!newSectorName.trim()) return;
+    store.addSector(newSectorName.trim());
+    setNewSectorName("");
+    toast.success("Sector creado");
   }
 
   function handleAddPosition(sectorId: string) {
-    const pos = newPositions[sectorId]?.trim()
-    if (!pos) return
+    const pos = newPositions[sectorId]?.trim();
+    if (!pos) return;
     // Check for duplicates
-    const allPositions = store.getAllPositions()
+    const allPositions = store.getAllPositions();
     if (allPositions.some((p) => p.posicion === pos.toUpperCase())) {
-      toast.error(`La posicion ${pos.toUpperCase()} ya existe`)
-      return
+      toast.error(`La posicion ${pos.toUpperCase()} ya existe`);
+      return;
     }
-    store.addPosition(sectorId, pos)
-    setNewPositions((prev) => ({ ...prev, [sectorId]: "" }))
-    toast.success(`Posicion ${pos.toUpperCase()} agregada`)
+    store.addPosition(sectorId, pos);
+    setNewPositions((prev) => ({ ...prev, [sectorId]: "" }));
+    toast.success(`Posicion ${pos.toUpperCase()} agregada`);
   }
 
   function handleRemovePosition(sectorId: string, posicion: string) {
-    const productsAtPos = store.getProductsAtPosition(posicion)
+    const productsAtPos = store.getProductsAtPosition(posicion);
     if (productsAtPos.length > 0) {
       toast.error(
         `No se puede eliminar: hay ${productsAtPos.length} producto(s) en ${posicion}`
-      )
-      return
+      );
+      return;
     }
-    store.removePosition(sectorId, posicion)
-    toast.success(`Posicion ${posicion} eliminada`)
+    store.removePosition(sectorId, posicion);
+    toast.success(`Posicion ${posicion} eliminada`);
   }
 
   function handleRemoveSector(sectorId: string) {
-    const sector = sectors.find((s) => s.id === sectorId)
-    if (!sector) return
+    const sector = sectors.find((s) => s.id === sectorId);
+    if (!sector) return;
     const productsInSector = sector.posiciones.flatMap((pos) =>
       store.getProductsAtPosition(pos)
-    )
+    );
     if (productsInSector.length > 0) {
       toast.error(
         `No se puede eliminar: hay ${productsInSector.length} producto(s) en este sector`
-      )
-      return
+      );
+      return;
     }
-    store.removeSector(sectorId)
-    toast.success(`${sector.nombre} eliminado`)
+    store.removeSector(sectorId);
+    toast.success(`${sector.nombre} eliminado`);
   }
 
   function handleMoveProduct(productId: string) {
-    if (!moveTarget) return
-    store.moveProduct(productId, moveTarget)
-    setMovingProduct(null)
-    setMoveTarget("")
-    const product = store.getProductById(productId)
-    toast.success(`${product?.nombre} movido a ${moveTarget}`)
+    if (!moveTarget) return;
+    store.moveProduct(productId, moveTarget);
+    setMovingProduct(null);
+    setMoveTarget("");
+    const product = store.getProductById(productId);
+    toast.success(`${product?.nombre} movido a ${moveTarget}`);
   }
 
   function handleClearLocation(productId: string) {
-    store.moveProduct(productId, "")
-    const product = store.getProductById(productId)
-    toast.success(`Ubicacion de ${product?.nombre} eliminada`)
+    store.moveProduct(productId, "");
+    const product = store.getProductById(productId);
+    toast.success(`Ubicacion de ${product?.nombre} eliminada`);
   }
 
   return (
@@ -154,10 +154,10 @@ export default function UbicacionesPage() {
       {/* Sectors list */}
       <div className="flex flex-col gap-4">
         {sectors.map((sector) => {
-          const isExpanded = expandedSectors.has(sector.id)
+          const isExpanded = expandedSectors.has(sector.id);
           const productsInSector = sector.posiciones.flatMap((pos) =>
             store.getProductsAtPosition(pos)
-          )
+          );
 
           return (
             <div
@@ -165,13 +165,21 @@ export default function UbicacionesPage() {
               className="rounded-2xl bg-card shadow-sm ring-1 ring-border overflow-hidden"
             >
               {/* Sector Header */}
-              <button
+              {/* Sector Header */}
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => toggleSector(sector.id)}
-                className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/30 transition-colors"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ")
+                    toggleSector(sector.id);
+                }}
+                className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/30 transition-colors cursor-pointer"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chart-1/10">
                   <MapPin className="h-5 w-5 text-chart-1" />
                 </div>
+
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-foreground">
                     {sector.nombre}
@@ -181,39 +189,47 @@ export default function UbicacionesPage() {
                     {productsInSector.length} producto(s)
                   </p>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemoveSector(sector.id)
+                      e.stopPropagation();
+                      handleRemoveSector(sector.id);
                     }}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
+                    <span className="sr-only">Eliminar sector</span>
                   </Button>
+
                   {isExpanded ? (
                     <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   ) : (
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
-              </button>
+              </div>
 
               {/* Expanded Content */}
               {isExpanded && (
                 <div className="border-t border-border">
                   {/* Positions */}
                   {sector.posiciones.map((pos) => {
-                    const productsHere = store.getProductsAtPosition(pos)
+                    const productsHere = store.getProductsAtPosition(pos);
                     return (
                       <div
                         key={pos}
                         className="border-b border-border last:border-b-0"
                       >
                         <div className="flex items-center gap-3 px-4 py-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-chart-1/10 text-xs font-black font-mono text-chart-1">
+                          <span
+                            className={`flex h-8 shrink-0 items-center justify-center rounded-lg bg-chart-1/10 text-xs font-black font-mono text-chart-1 whitespace-nowrap ${
+                              String(pos).length > 3 ? "px-2 min-w-8" : "w-8"
+                            }`}
+                            title={pos}
+                          >
                             {pos}
                           </span>
                           <div className="flex-1 min-w-0">
@@ -249,9 +265,7 @@ export default function UbicacionesPage() {
                                           <SelectContent>
                                             {store
                                               .getAllPositions()
-                                              .filter(
-                                                (x) => x.posicion !== pos
-                                              )
+                                              .filter((x) => x.posicion !== pos)
                                               .map((x) => (
                                                 <SelectItem
                                                   key={x.posicion}
@@ -279,8 +293,8 @@ export default function UbicacionesPage() {
                                           size="sm"
                                           className="h-7 px-2 text-[10px] rounded-lg"
                                           onClick={() => {
-                                            setMovingProduct(null)
-                                            setMoveTarget("")
+                                            setMovingProduct(null);
+                                            setMoveTarget("");
                                           }}
                                         >
                                           X
@@ -289,9 +303,7 @@ export default function UbicacionesPage() {
                                     ) : (
                                       <div className="flex gap-0.5">
                                         <button
-                                          onClick={() =>
-                                            setMovingProduct(p.id)
-                                          }
+                                          onClick={() => setMovingProduct(p.id)}
                                           className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                                           title="Mover producto"
                                         >
@@ -317,15 +329,13 @@ export default function UbicacionesPage() {
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() =>
-                              handleRemovePosition(sector.id, pos)
-                            }
+                            onClick={() => handleRemovePosition(sector.id, pos)}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
-                    )
+                    );
                   })}
 
                   {/* Add Position */}
@@ -341,8 +351,8 @@ export default function UbicacionesPage() {
                       }
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
-                          e.preventDefault()
-                          handleAddPosition(sector.id)
+                          e.preventDefault();
+                          handleAddPosition(sector.id);
                         }
                       }}
                       className="h-8 flex-1 rounded-lg text-xs"
@@ -360,7 +370,7 @@ export default function UbicacionesPage() {
                 </div>
               )}
             </div>
-          )
+          );
         })}
 
         {sectors.length === 0 && (
@@ -382,8 +392,8 @@ export default function UbicacionesPage() {
 
       {/* Unassigned products */}
       {(() => {
-        const unassigned = products.filter((p) => !p.ubicacion)
-        if (unassigned.length === 0) return null
+        const unassigned = products.filter((p) => !p.ubicacion);
+        if (unassigned.length === 0) return null;
         return (
           <div className="rounded-2xl bg-card shadow-sm ring-1 ring-border overflow-hidden">
             <div className="p-4 border-b border-border bg-muted/20">
@@ -396,10 +406,7 @@ export default function UbicacionesPage() {
             </div>
             <div className="divide-y divide-border">
               {unassigned.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 px-4 py-3"
-                >
+                <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
                     <Package className="h-4 w-4 text-muted-foreground" />
                   </div>
@@ -408,10 +415,7 @@ export default function UbicacionesPage() {
                   </p>
                   {movingProduct === p.id ? (
                     <div className="flex items-center gap-1">
-                      <Select
-                        value={moveTarget}
-                        onValueChange={setMoveTarget}
-                      >
+                      <Select value={moveTarget} onValueChange={setMoveTarget}>
                         <SelectTrigger className="h-7 w-20 text-[10px] rounded-lg">
                           <SelectValue placeholder="A..." />
                         </SelectTrigger>
@@ -438,8 +442,8 @@ export default function UbicacionesPage() {
                         size="sm"
                         className="h-7 px-2 text-[10px] rounded-lg"
                         onClick={() => {
-                          setMovingProduct(null)
-                          setMoveTarget("")
+                          setMovingProduct(null);
+                          setMoveTarget("");
                         }}
                       >
                         X
@@ -460,8 +464,8 @@ export default function UbicacionesPage() {
               ))}
             </div>
           </div>
-        )
+        );
       })()}
     </div>
-  )
+  );
 }

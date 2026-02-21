@@ -1,3 +1,4 @@
+const Ubicacion = require("../models/ubicacion.model");
 const Producto = require("../models/producto.model");
 const MovimientoStock = require("../models/movimientoStock.model");
 const mongoose = require("mongoose");
@@ -10,6 +11,37 @@ const fs = require("fs-extra");
 const UPLOAD_DIR = path.resolve(__dirname, "..", "..", "uploads", "productos");
 
 class ProductoService {
+  async _getOrCreateDefaultUbicacion() {
+    const sector = "AUN A DEFINIR";
+    const codigo = "SIN-UBICACION";
+    const key = `${sector}-${codigo}`.toLowerCase();
+
+    let uDefault = await Ubicacion.findOne({ key });
+
+    if (!uDefault) {
+      try {
+        uDefault = await Ubicacion.create({
+          sector,
+          codigo,
+          descripcion: "Ubicación por defecto",
+          activo: true,
+          key,
+        });
+      } catch (e) {
+        // carrera si otra request la creó
+        uDefault = await Ubicacion.findOne({ key });
+      }
+    }
+
+    if (!uDefault) {
+      const err = new Error("No se pudo obtener la ubicación por defecto");
+      err.status = 500;
+      throw err;
+    }
+
+    return uDefault;
+  }
+
   async crearProducto(data) {
     // Asegurar números si vienen como string (por Postman o multipart)
     const payload = {
@@ -21,6 +53,12 @@ class ProductoService {
           ? Number(data.stockMinimo)
           : data?.stockMinimo,
     };
+
+    // Si no viene ubicación, asignar ubicación por defecto
+    if (!payload.ubicacionId) {
+      const uDefault = await this._getOrCreateDefaultUbicacion();
+      payload.ubicacionId = uDefault._id;
+    }
 
     const producto = await Producto.create(payload);
 
@@ -108,6 +146,15 @@ class ProductoService {
           ? Number(data.stockMinimo)
           : data?.stockMinimo,
     };
+
+    // ✅ Si el front manda ubicacionId vacío ("") significa "Sin ubicación"
+    //    En vez de guardar vacío, asignamos la ubicación por defecto.
+    if (Object.prototype.hasOwnProperty.call(data, "ubicacionId")) {
+      if (!data.ubicacionId) {
+        const uDefault = await this._getOrCreateDefaultUbicacion();
+        payload.ubicacionId = uDefault._id;
+      }
+    }
 
     const producto = await Producto.findByIdAndUpdate(id, payload, {
       new: true,

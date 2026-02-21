@@ -1,23 +1,92 @@
-"use client"
+"use client";
 
-import { useSectors } from "@/hooks/use-store"
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { MapPin } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { MapPin } from "lucide-react"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/select";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+
+type Ubicacion = {
+  _id: string;
+  sector: string;
+  codigo: string;
+  descripcion?: string;
+  activo: boolean;
+};
 
 interface LocationPickerProps {
-  value: string
-  onChange: (value: string) => void
+  value: string; // ✅ ubicacionId (ObjectId)
+  onChange: (value: string) => void; // devuelve ubicacionId o "" si none
 }
 
 export function LocationPicker({ value, onChange }: LocationPickerProps) {
-  const sectors = useSectors()
+  const [loading, setLoading] = useState(true);
+  const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/api/ubicaciones?activo=true`, {
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`Error ubicaciones: HTTP ${res.status} ${txt}`);
+        }
+
+        const json = await res.json();
+        const data = (json?.data ?? []) as Ubicacion[];
+
+        if (mounted) setUbicaciones(data);
+      } catch (e: any) {
+        toast.error(e?.message || "Error cargando ubicaciones");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Ubicacion[]>();
+
+    for (const u of ubicaciones) {
+      const sector = String(u?.sector ?? "")
+        .toUpperCase()
+        .trim();
+      if (!sector) continue;
+
+      if (!map.has(sector)) map.set(sector, []);
+      map.get(sector)!.push(u);
+    }
+
+    const sectors = Array.from(map.keys()).sort((a, b) => a.localeCompare(b));
+
+    return sectors.map((sector) => ({
+      sector,
+      items: map
+        .get(sector)!
+        .slice()
+        .sort((a, b) =>
+          String(a.codigo ?? "").localeCompare(String(b.codigo ?? ""))
+        ),
+    }));
+  }, [ubicaciones]);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -27,36 +96,49 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
           Ubicacion
         </span>
       </Label>
-      <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
+
+      <Select
+        value={value || "none"}
+        onValueChange={(v) => onChange(v === "none" ? "" : v)}
+        disabled={loading}
+      >
         <SelectTrigger className="h-11 rounded-xl">
-          <SelectValue placeholder="Sin ubicacion asignada" />
+          <SelectValue
+            placeholder={
+              loading ? "Cargando ubicaciones..." : "Sin ubicacion asignada"
+            }
+          />
         </SelectTrigger>
+
         <SelectContent>
           <SelectItem value="none">
             <span className="text-muted-foreground">Sin ubicacion</span>
           </SelectItem>
-          {sectors.map((sector) => (
-            <div key={sector.id}>
+
+          {grouped.map((g) => (
+            <div key={g.sector}>
               <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                {sector.nombre}
+                {g.sector}
               </div>
-              {sector.posiciones.map((pos) => (
-                <SelectItem key={pos} value={pos}>
-                  <span className="font-mono font-semibold">{pos}</span>
-                  <span className="ml-2 text-muted-foreground">
-                    {sector.nombre}
+
+              {g.items.map((u) => (
+                <SelectItem key={u._id} value={u._id}>
+                  <span className="font-mono font-semibold">
+                    {String(u.codigo ?? "").toUpperCase()}
                   </span>
+                  <span className="ml-2 text-muted-foreground">{g.sector}</span>
                 </SelectItem>
               ))}
             </div>
           ))}
         </SelectContent>
       </Select>
+
       <p className="text-xs text-muted-foreground">
         Sector y posicion donde se almacena el producto
       </p>
     </div>
-  )
+  );
 }
 
 export function LocationBadge({ ubicacion }: { ubicacion?: string }) {
@@ -66,7 +148,7 @@ export function LocationBadge({ ubicacion }: { ubicacion?: string }) {
         <MapPin className="h-3 w-3" />
         Sin ubicacion
       </span>
-    )
+    );
   }
 
   return (
@@ -74,5 +156,5 @@ export function LocationBadge({ ubicacion }: { ubicacion?: string }) {
       <MapPin className="h-3 w-3" />
       <span className="font-mono">{ubicacion}</span>
     </span>
-  )
+  );
 }
